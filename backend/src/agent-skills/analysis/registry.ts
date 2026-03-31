@@ -88,7 +88,14 @@ function assertStringArray(value: unknown, fallback: string[] = []): string[] {
 function toAnalysisSkillManifest(skillDir: string): AnalysisSkillManifest | null {
   const intentPath = path.join(skillDir, 'intent.md');
   const runtimePath = path.join(skillDir, 'runtime.py');
+  const dirName = path.basename(skillDir);
+
   if (!existsSync(intentPath) || !existsSync(runtimePath)) {
+    const missing = [
+      !existsSync(intentPath) ? 'intent.md' : null,
+      !existsSync(runtimePath) ? 'runtime.py' : null,
+    ].filter(Boolean);
+    console.warn(`[analysis-registry] Skipping skill directory '${dirName}': missing ${missing.join(', ')}`);
     return null;
   }
 
@@ -99,7 +106,15 @@ function toAnalysisSkillManifest(skillDir: string): AnalysisSkillManifest | null
   const engineId = assertString(metadata.engineId) as AnalysisSkillManifest['engineId'];
   const adapterKey = assertString(metadata.adapterKey) as AnalysisSkillManifest['adapterKey'];
 
-  if (!id || !software || !analysisType || !engineId || !adapterKey) {
+  const requiredFields: Record<string, string> = { id, software, analysisType, engineId, adapterKey };
+  const missingFields = Object.entries(requiredFields)
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+
+  if (missingFields.length > 0) {
+    console.warn(
+      `[analysis-registry] Skipping skill '${dirName}': intent.md frontmatter missing required fields: ${missingFields.join(', ')}`,
+    );
     return null;
   }
 
@@ -130,11 +145,17 @@ function toAnalysisSkillManifest(skillDir: string): AnalysisSkillManifest | null
 
 function discoverBuiltinAnalysisSkills(): AnalysisSkillManifest[] {
   const root = resolveAnalysisSkillRoot();
-  return readdirSync(root, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'runtime')
-    .map((entry) => toAnalysisSkillManifest(path.join(root, entry.name)))
-    .filter((skill): skill is AnalysisSkillManifest => skill !== null)
-    .sort((left, right) => right.priority - left.priority || left.id.localeCompare(right.id));
+  const dirs = readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'runtime');
+  const results = dirs.map((entry) => toAnalysisSkillManifest(path.join(root, entry.name)));
+  const loaded = results.filter((skill): skill is AnalysisSkillManifest => skill !== null);
+  const skipped = dirs.length - loaded.length;
+  if (skipped > 0) {
+    console.warn(
+      `[analysis-registry] Discovery summary: ${loaded.length} skills loaded, ${skipped} skipped (check warnings above for details)`,
+    );
+  }
+  return loaded.sort((left, right) => right.priority - left.priority || left.id.localeCompare(right.id));
 }
 
 function uniqueOrdered<T extends string>(values: readonly T[], order: readonly T[]): T[] {
