@@ -168,8 +168,8 @@ interface SkillPackageMetadata {
 
 1. **合并**：将内置和外部提供者合并为一个列表。
 2. **过滤**：应用可选的 filter 回调排除提供者。
-3. **排序**：按优先级降序，然后内置优先于 skillhub，最后按 id 字母顺序。
-4. **去重**：保留每个提供者 ID 的首次出现（最高优先级胜出）。
+3. **排序**：按可配置的优先级顺序排序（默认按 priority 降序），然后内置优先于 skillhub，最后按 id 字母顺序。
+4. **去重**：保留排序后每个提供者 ID 的首次出现者；在默认 `priorityOrder: 'desc'` 时，这对应于「最高优先级胜出」。
 5. **依赖解析**：提供 `packages` Map 时，检查 `requires`/`conflicts`。
 6. **后处理**：应用可选的 finalize 回调。
 

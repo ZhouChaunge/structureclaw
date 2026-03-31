@@ -143,6 +143,30 @@ describe('resolveSkillDependencies', () => {
     expect(result.accepted.map((p) => p.id)).toEqual(['a']);
     expect(result.rejected).toEqual([]);
   });
+
+  test('should propagate rejections: if B is rejected, A requiring B is also rejected', () => {
+    const providers = [makeProvider('a'), makeProvider('b'), makeProvider('c')];
+    const packages = new Map([
+      makePackage('a', { requires: ['b'] }),
+      makePackage('b', { conflicts: ['c'] }),
+      makePackage('c'),
+    ]);
+    const result = resolveSkillDependencies(providers, packages);
+
+    expect(result.accepted.map((p) => p.id)).toEqual(['c']);
+    expect(result.rejected.map((r) => r.providerId).sort()).toEqual(['a', 'b']);
+  });
+
+  test('should not self-conflict when provider id appears in its own conflicts list', () => {
+    const providers = [makeProvider('a')];
+    const packages = new Map([
+      makePackage('a', { conflicts: ['a'] }),
+    ]);
+    const result = resolveSkillDependencies(providers, packages);
+
+    expect(result.accepted.map((p) => p.id)).toEqual(['a']);
+    expect(result.rejected).toEqual([]);
+  });
 });
 
 describe('loadSkillProviders with dependency resolution', () => {

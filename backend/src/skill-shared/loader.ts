@@ -135,6 +135,11 @@ export function loadSkillProviders<TProvider extends BaseSkillProvider<string>>(
   const resolved = options?.packages
     ? resolveSkillDependencies(deduped, options.packages)
     : { accepted: deduped, rejected: [] };
+  if (resolved.rejected.length > 0) {
+    for (const r of resolved.rejected) {
+      console.warn(`[skill-loader] Provider '${r.providerId}' rejected: ${r.reason} — ${r.detail}`);
+    }
+  }
   return options?.finalize ? options.finalize(resolved.accepted) : resolved.accepted;
 }
 
@@ -142,40 +147,49 @@ export function resolveSkillDependencies<TProvider extends BaseSkillProvider<str
   providers: TProvider[],
   packages: Map<string, SkillPackageMetadata>,
 ): SkillDependencyResolution<TProvider> {
-  const availableIds = new Set(providers.map((p) => p.id));
-  const accepted: TProvider[] = [];
+  let accepted = [...providers];
   const rejected: SkillDependencyRejection[] = [];
+  let changed = true;
 
-  for (const provider of providers) {
-    const pkg = packages.get(provider.id);
-    if (!pkg) {
-      accepted.push(provider);
-      continue;
+  while (changed) {
+    changed = false;
+    const availableIds = new Set(accepted.map((p) => p.id));
+    const nextAccepted: TProvider[] = [];
+
+    for (const provider of accepted) {
+      const pkg = packages.get(provider.id);
+      if (!pkg) {
+        nextAccepted.push(provider);
+        continue;
+      }
+
+      const requires = pkg.requires ?? [];
+      const unmet = requires.filter((dep) => !availableIds.has(dep));
+      if (unmet.length > 0) {
+        rejected.push({
+          providerId: provider.id,
+          reason: 'unmet_requires',
+          detail: `Missing required skills: ${unmet.join(', ')}`,
+        });
+        changed = true;
+        continue;
+      }
+
+      const conflicts = pkg.conflicts ?? [];
+      const hit = conflicts.filter((dep) => dep !== provider.id && availableIds.has(dep));
+      if (hit.length > 0) {
+        rejected.push({
+          providerId: provider.id,
+          reason: 'conflict_detected',
+          detail: `Conflicts with loaded skills: ${hit.join(', ')}`,
+        });
+        changed = true;
+        continue;
+      }
+
+      nextAccepted.push(provider);
     }
-
-    const requires = pkg.requires ?? [];
-    const unmet = requires.filter((dep) => !availableIds.has(dep));
-    if (unmet.length > 0) {
-      rejected.push({
-        providerId: provider.id,
-        reason: 'unmet_requires',
-        detail: `Missing required skills: ${unmet.join(', ')}`,
-      });
-      continue;
-    }
-
-    const conflicts = pkg.conflicts ?? [];
-    const hit = conflicts.filter((dep) => availableIds.has(dep));
-    if (hit.length > 0) {
-      rejected.push({
-        providerId: provider.id,
-        reason: 'conflict_detected',
-        detail: `Conflicts with loaded skills: ${hit.join(', ')}`,
-      });
-      continue;
-    }
-
-    accepted.push(provider);
+    accepted = nextAccepted;
   }
 
   return { accepted, rejected };

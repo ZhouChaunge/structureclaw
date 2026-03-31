@@ -168,8 +168,8 @@ merge → filter → sort → deduplicate → resolve dependencies → finalize
 
 1. **Merge**: Combine builtin and external providers into one list.
 2. **Filter**: Apply optional filter callback to exclude providers.
-3. **Sort**: By priority (descending by default), then builtin-before-skillhub, then alphabetical id.
-4. **Deduplicate**: Keep the first occurrence of each provider ID (highest priority wins).
+3. **Sort**: By priority according to `priorityOrder` (**descending by default**), then builtin-before-skillhub, then alphabetical id.
+4. **Deduplicate**: Keep the first occurrence of each provider ID in the sorted order (so the "winner" depends on `priorityOrder`; with the default `desc`, the highest priority wins).
 5. **Resolve dependencies**: When a `packages` map is provided, check `requires`/`conflicts`.
 6. **Finalize**: Apply optional post-processing callback.
 

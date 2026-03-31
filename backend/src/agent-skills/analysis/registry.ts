@@ -106,7 +106,13 @@ function toAnalysisSkillManifest(skillDir: string): AnalysisSkillManifest | null
   const engineId = assertString(metadata.engineId) as AnalysisSkillManifest['engineId'];
   const adapterKey = assertString(metadata.adapterKey) as AnalysisSkillManifest['adapterKey'];
 
-  const requiredFields: Record<string, string> = { id, software, analysisType, engineId, adapterKey };
+  const requiredFields: Record<string, string> = {
+    id: assertString(metadata.id),
+    software,
+    analysisType,
+    engineId,
+    adapterKey,
+  };
   const missingFields = Object.entries(requiredFields)
     .filter(([, value]) => !value)
     .map(([key]) => key);
