@@ -3,6 +3,55 @@ import type { SkillPackageMetadata } from './package.js';
 
 type SkillProviderPriorityOrder = 'asc' | 'desc';
 
+export type SkillCompatibilityReasonCode = 'runtime_version_incompatible' | 'skill_api_version_incompatible';
+
+export interface SkillCompatibilityResult {
+  compatible: boolean;
+  reasonCodes: SkillCompatibilityReasonCode[];
+}
+
+export function parseVersion(value: string): number[] {
+  return String(value)
+    .trim()
+    .replace(/^v/i, '')
+    .split('.')
+    .map((part) => Number.parseInt(part, 10))
+    .filter((part) => Number.isFinite(part));
+}
+
+export function isVersionGreater(required: string, current: string): boolean {
+  const requiredParts = parseVersion(required);
+  const currentParts = parseVersion(current);
+  const maxLen = Math.max(requiredParts.length, currentParts.length);
+  for (let index = 0; index < maxLen; index += 1) {
+    const left = requiredParts[index] || 0;
+    const right = currentParts[index] || 0;
+    if (left === right) {
+      continue;
+    }
+    return left > right;
+  }
+  return false;
+}
+
+export function evaluateSkillCompatibility(
+  compatibility: { minRuntimeVersion: string; skillApiVersion: string },
+  runtimeVersion: string,
+  skillApiVersion: string,
+): SkillCompatibilityResult {
+  const reasonCodes: SkillCompatibilityReasonCode[] = [];
+  if (isVersionGreater(compatibility.minRuntimeVersion, runtimeVersion)) {
+    reasonCodes.push('runtime_version_incompatible');
+  }
+  if (compatibility.skillApiVersion !== skillApiVersion) {
+    reasonCodes.push('skill_api_version_incompatible');
+  }
+  return {
+    compatible: reasonCodes.length === 0,
+    reasonCodes,
+  };
+}
+
 export type SkillDependencyRejectReason = 'unmet_requires' | 'conflict_detected';
 
 export interface SkillDependencyRejection {
