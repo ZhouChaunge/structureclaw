@@ -95,4 +95,122 @@ describe('shared executable skill provider loader', () => {
       },
     ]);
   });
+
+  test('should report import_failed when importModule throws an Error', async () => {
+    const result = await loadExecutableSkillProviders({
+      packages: [{
+        id: 'pkg-crash',
+        domain: 'code-check',
+        version: '2.0.0',
+        source: 'skillhub',
+        capabilities: [],
+        compatibility: {
+          minRuntimeVersion: '0.1.0',
+          skillApiVersion: 'v1',
+        },
+        entrypoints: {
+          codeCheck: 'dist/broken.js',
+        },
+        enabledByDefault: false,
+      }],
+      entrypointKey: 'codeCheck',
+      importModule: async () => { throw new Error('Module not found: dist/broken.js'); },
+      buildProvider: () => ({
+        id: 'unused',
+        domain: 'code-check',
+        source: 'skillhub',
+        priority: 10,
+      }),
+    });
+
+    expect(result.providers).toEqual([]);
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]).toMatchObject({
+      packageId: 'pkg-crash',
+      packageVersion: '2.0.0',
+      stage: 'import',
+      reason: 'import_failed',
+    });
+    expect(result.failures[0].detail).toContain('Module not found');
+  });
+
+  test('should capture non-Error thrown values as import_failed detail', async () => {
+    const result = await loadExecutableSkillProviders({
+      packages: [{
+        id: 'pkg-string-throw',
+        domain: 'code-check',
+        version: '1.0.0',
+        source: 'skillhub',
+        capabilities: [],
+        compatibility: {
+          minRuntimeVersion: '0.1.0',
+          skillApiVersion: 'v1',
+        },
+        entrypoints: {
+          codeCheck: 'dist/thing.js',
+        },
+        enabledByDefault: false,
+      }],
+      entrypointKey: 'codeCheck',
+      importModule: async () => { throw 'network timeout'; },
+      buildProvider: () => ({
+        id: 'unused',
+        domain: 'code-check',
+        source: 'skillhub',
+        priority: 10,
+      }),
+    });
+
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0].detail).toBe('network timeout');
+  });
+
+  test('should return empty providers and failures when packages list is empty', async () => {
+    const result = await loadExecutableSkillProviders({
+      packages: [],
+      entrypointKey: 'codeCheck',
+      importModule: async () => ({}),
+      buildProvider: () => ({
+        id: 'unused',
+        domain: 'code-check',
+        source: 'skillhub',
+        priority: 10,
+      }),
+    });
+
+    expect(result.providers).toEqual([]);
+    expect(result.failures).toEqual([]);
+  });
+
+  test('should skip validation when validateModule is not provided', async () => {
+    const result = await loadExecutableSkillProviders({
+      packages: [{
+        id: 'pkg-no-validate',
+        domain: 'code-check',
+        version: '1.0.0',
+        source: 'skillhub',
+        capabilities: [],
+        compatibility: {
+          minRuntimeVersion: '0.1.0',
+          skillApiVersion: 'v1',
+        },
+        entrypoints: {
+          codeCheck: 'dist/code-check.js',
+        },
+        enabledByDefault: false,
+      }],
+      entrypointKey: 'codeCheck',
+      importModule: async () => ({ providerId: 'no-validate-provider' }),
+      buildProvider: (module) => ({
+        id: module.providerId,
+        domain: 'code-check',
+        source: 'skillhub',
+        priority: 10,
+      }),
+    });
+
+    expect(result.failures).toEqual([]);
+    expect(result.providers).toHaveLength(1);
+    expect(result.providers[0].id).toBe('no-validate-provider');
+  });
 });
