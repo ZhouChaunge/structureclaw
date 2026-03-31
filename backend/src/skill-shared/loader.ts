@@ -3,12 +3,26 @@ import type { SkillPackageMetadata } from './package.js';
 
 type SkillProviderPriorityOrder = 'asc' | 'desc';
 
+export type SkillDependencyRejectReason = 'unmet_requires' | 'conflict_detected';
+
+export interface SkillDependencyRejection {
+  providerId: string;
+  reason: SkillDependencyRejectReason;
+  detail: string;
+}
+
+export interface SkillDependencyResolution<TProvider extends BaseSkillProvider<string>> {
+  accepted: TProvider[];
+  rejected: SkillDependencyRejection[];
+}
+
 export interface LoadSkillProvidersOptions<TProvider extends BaseSkillProvider<string>> {
   builtInProviders?: TProvider[];
   externalProviders?: TProvider[];
   priorityOrder?: SkillProviderPriorityOrder;
   filter?: (provider: TProvider) => boolean;
   finalize?: (providers: TProvider[]) => TProvider[];
+  packages?: Map<string, SkillPackageMetadata>;
 }
 
 export interface ExecutableSkillProviderLoadFailure<TPackage extends SkillPackageMetadata<string>> {
@@ -69,7 +83,53 @@ export function loadSkillProviders<TProvider extends BaseSkillProvider<string>>(
     }
   }
   const deduped = [...byId.values()].sort(compare);
-  return options?.finalize ? options.finalize(deduped) : deduped;
+  const resolved = options?.packages
+    ? resolveSkillDependencies(deduped, options.packages)
+    : { accepted: deduped, rejected: [] };
+  return options?.finalize ? options.finalize(resolved.accepted) : resolved.accepted;
+}
+
+export function resolveSkillDependencies<TProvider extends BaseSkillProvider<string>>(
+  providers: TProvider[],
+  packages: Map<string, SkillPackageMetadata>,
+): SkillDependencyResolution<TProvider> {
+  const availableIds = new Set(providers.map((p) => p.id));
+  const accepted: TProvider[] = [];
+  const rejected: SkillDependencyRejection[] = [];
+
+  for (const provider of providers) {
+    const pkg = packages.get(provider.id);
+    if (!pkg) {
+      accepted.push(provider);
+      continue;
+    }
+
+    const requires = pkg.requires ?? [];
+    const unmet = requires.filter((dep) => !availableIds.has(dep));
+    if (unmet.length > 0) {
+      rejected.push({
+        providerId: provider.id,
+        reason: 'unmet_requires',
+        detail: `Missing required skills: ${unmet.join(', ')}`,
+      });
+      continue;
+    }
+
+    const conflicts = pkg.conflicts ?? [];
+    const hit = conflicts.filter((dep) => availableIds.has(dep));
+    if (hit.length > 0) {
+      rejected.push({
+        providerId: provider.id,
+        reason: 'conflict_detected',
+        detail: `Conflicts with loaded skills: ${hit.join(', ')}`,
+      });
+      continue;
+    }
+
+    accepted.push(provider);
+  }
+
+  return { accepted, rejected };
 }
 
 export async function loadExecutableSkillProviders<
