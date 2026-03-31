@@ -1,4 +1,4 @@
-﻿import type { BaseSkillProvider } from './provider.js';
+import type { BaseSkillProvider } from './provider.js';
 import type { SkillPackageMetadata } from './package.js';
 
 type SkillProviderPriorityOrder = 'asc' | 'desc';
@@ -194,4 +194,35 @@ export async function loadExecutableSkillProviders<
   }
 
   return { providers, failures };
+}
+
+export interface SkillLoadSummary {
+  loaded: number;
+  failed: number;
+  failuresByReason: Record<string, number>;
+  failureDetails: Array<{ packageId: string; reason: string; detail?: string }>;
+}
+
+export function summarizeSkillLoadResult<TPackage extends SkillPackageMetadata<string>>(result: {
+  providers: BaseSkillProvider<string>[];
+  failures: ExecutableSkillProviderLoadFailure<TPackage>[];
+}): SkillLoadSummary {
+  const failuresByReason: Record<string, number> = {};
+  const failureDetails: SkillLoadSummary['failureDetails'] = [];
+
+  for (const failure of result.failures) {
+    failuresByReason[failure.reason] = (failuresByReason[failure.reason] ?? 0) + 1;
+    failureDetails.push({
+      packageId: failure.packageId,
+      reason: failure.reason,
+      detail: failure.detail,
+    });
+  }
+
+  return {
+    loaded: result.providers.length,
+    failed: result.failures.length,
+    failuresByReason,
+    failureDetails,
+  };
 }

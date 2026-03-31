@@ -1,5 +1,5 @@
-﻿import { describe, expect, test } from '@jest/globals';
-import { loadExecutableSkillProviders } from '../dist/skill-shared/loader.js';
+import { describe, expect, test } from '@jest/globals';
+import { loadExecutableSkillProviders, summarizeSkillLoadResult } from '../dist/skill-shared/loader.js';
 
 describe('shared executable skill provider loader', () => {
   test('should load executable providers when entrypoint import and validation succeed', async () => {
@@ -212,5 +212,78 @@ describe('shared executable skill provider loader', () => {
     expect(result.failures).toEqual([]);
     expect(result.providers).toHaveLength(1);
     expect(result.providers[0].id).toBe('no-validate-provider');
+  });
+});
+
+describe('summarizeSkillLoadResult', () => {
+  test('should summarize a successful load with no failures', () => {
+    const summary = summarizeSkillLoadResult({
+      providers: [
+        { id: 'a', domain: 'demo', source: 'builtin', priority: 50 },
+        { id: 'b', domain: 'demo', source: 'builtin', priority: 40 },
+      ],
+      failures: [],
+    });
+
+    expect(summary.loaded).toBe(2);
+    expect(summary.failed).toBe(0);
+    expect(summary.failuresByReason).toEqual({});
+    expect(summary.failureDetails).toEqual([]);
+  });
+
+  test('should group failures by reason and include details', () => {
+    const summary = summarizeSkillLoadResult({
+      providers: [{ id: 'ok', domain: 'demo', source: 'builtin', priority: 50 }],
+      failures: [
+        {
+          packageId: 'pkg-a',
+          packageVersion: '1.0.0',
+          domain: 'code-check',
+          source: 'skillhub',
+          stage: 'entrypoint',
+          reason: 'missing_entrypoint',
+        },
+        {
+          packageId: 'pkg-b',
+          packageVersion: '1.0.0',
+          domain: 'code-check',
+          source: 'skillhub',
+          stage: 'import',
+          reason: 'import_failed',
+          detail: 'Module not found',
+        },
+        {
+          packageId: 'pkg-c',
+          packageVersion: '1.0.0',
+          domain: 'code-check',
+          source: 'skillhub',
+          stage: 'entrypoint',
+          reason: 'missing_entrypoint',
+        },
+      ],
+    });
+
+    expect(summary.loaded).toBe(1);
+    expect(summary.failed).toBe(3);
+    expect(summary.failuresByReason).toEqual({
+      missing_entrypoint: 2,
+      import_failed: 1,
+    });
+    expect(summary.failureDetails).toHaveLength(3);
+    expect(summary.failureDetails[1]).toMatchObject({
+      packageId: 'pkg-b',
+      reason: 'import_failed',
+      detail: 'Module not found',
+    });
+  });
+
+  test('should handle empty result', () => {
+    const summary = summarizeSkillLoadResult({
+      providers: [],
+      failures: [],
+    });
+
+    expect(summary.loaded).toBe(0);
+    expect(summary.failed).toBe(0);
   });
 });
