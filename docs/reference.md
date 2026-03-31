@@ -162,3 +162,5 @@ Regression entrypoints:
 - Operational guide: `docs/handbook.md`
 - Chinese operational guide: `docs/handbook_CN.md`
 - Chinese protocol reference: `docs/reference_CN.md`
+- Skill loading mechanism: `docs/schema/skill-loading.md`
+- Skill loading mechanism (Chinese): `docs/schema/skill-loading_CN.md`

@@ -162,3 +162,5 @@ Chat 与消息：
 - 操作手册：`docs/handbook_CN.md`
 - 英文操作手册：`docs/handbook.md`
 - 英文协议参考：`docs/reference.md`
+- 技能加载机制：`docs/schema/skill-loading_CN.md`
+- 技能加载机制（英文）：`docs/schema/skill-loading.md`
