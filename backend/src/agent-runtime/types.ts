@@ -154,7 +154,8 @@ export type SkillDomain =
   | 'result-postprocess'
   | 'visualization'
   | 'report-export'
-  | 'generic-fallback';
+  | 'generic-fallback'
+  | 'general';
 
 export interface SkillCompatibility {
   minRuntimeVersion: string;
