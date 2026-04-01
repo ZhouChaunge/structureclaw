@@ -164,3 +164,5 @@ Regression entrypoints:
 - Chinese protocol reference: `docs/reference_CN.md`
 - Skill loading mechanism: `docs/schema/skill-loading.md`
 - Skill loading mechanism (Chinese): `docs/schema/skill-loading_CN.md`
+- Utility skill definitions: `docs/schema/utility-skills.md`
+- Utility skill definitions (Chinese): `docs/schema/utility-skills_CN.md`
