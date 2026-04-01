@@ -6,7 +6,7 @@ enName: Read File
 zhDescription: 在沙箱范围内读取指定文件的内容，支持文本和结构化格式。
 enDescription: Read file contents within the sandbox scope, supporting text and structured formats.
 triggers: []
-stages: ["intent"]
+stages: ["intent", "draft", "analysis"]
 autoLoadByDefault: false
 domain: general
 requires: []

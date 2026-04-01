@@ -6,7 +6,7 @@ enName: Replace
 zhDescription: 在沙箱范围内对文件内容执行精确文本替换操作。
 enDescription: Perform exact text replacement operations on file contents within the sandbox scope.
 triggers: []
-stages: ["intent"]
+stages: ["draft", "analysis"]
 autoLoadByDefault: false
 domain: general
 requires: ["read-file", "write-file"]

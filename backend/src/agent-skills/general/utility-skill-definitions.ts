@@ -3,6 +3,8 @@
  * and composition helpers for general-purpose (non-domain) skills.
  */
 
+import type { SkillStage } from '../../agent-runtime/types.js';
+
 // ---------------------------------------------------------------------------
 // Safety levels
 // ---------------------------------------------------------------------------
@@ -80,7 +82,7 @@ export const DEFAULT_WRITE_FILE_SANDBOX: FileSandboxRules = {
 
 export const DEFAULT_SHELL_SANDBOX: ShellSandboxRules = {
   allowedCommands: ['python', 'python3', 'opensees', 'OpenSees'],
-  denyCommands: ['rm', 'del', 'format', 'mkfs', 'sudo', 'su', 'chmod', 'chown', 'curl', 'wget', 'ssh', 'nc', 'ncat'],
+  denyCommands: ['rm', 'del', 'mv', 'cp', 'ln', 'format', 'mkfs', 'sudo', 'su', 'chmod', 'chown', 'curl', 'wget', 'ssh', 'nc', 'ncat'],
   denyArgs: ['--recursive', '--force', '-rf'],
   allowedCwd: '.runtime/workspace',
   maxTimeoutMs: 300_000, // 5 minutes
@@ -109,7 +111,7 @@ export interface UtilitySkillDescriptor {
   capabilities: string[];
   requires: string[];
   /** Pipeline stages where this skill may be invoked. */
-  reusableInStages: string[];
+  reusableInStages: SkillStage[];
 }
 
 /**
@@ -122,7 +124,7 @@ export const UTILITY_SKILL_DESCRIPTORS: UtilitySkillDescriptor[] = [
     safetyLevel: 'read-write-local',
     capabilities: ['context-store', 'context-retrieve', 'context-clear'],
     requires: [],
-    reusableInStages: ['intent', 'draft', 'analysis', 'design', 'report'],
+    reusableInStages: ['intent', 'draft', 'analysis', 'design'],
   },
   {
     id: 'planning',
@@ -136,14 +138,14 @@ export const UTILITY_SKILL_DESCRIPTORS: UtilitySkillDescriptor[] = [
     safetyLevel: 'read-only',
     capabilities: ['file-read-text', 'file-read-json', 'file-list-dir'],
     requires: [],
-    reusableInStages: ['intent', 'draft', 'analysis', 'report'],
+    reusableInStages: ['intent', 'draft', 'analysis'],
   },
   {
     id: 'write-file',
     safetyLevel: 'read-write-local',
     capabilities: ['file-write-text', 'file-write-json'],
     requires: [],
-    reusableInStages: ['analysis', 'report'],
+    reusableInStages: ['analysis'],
   },
   {
     id: 'replace',
@@ -168,7 +170,7 @@ export const UTILITY_SKILL_DESCRIPTORS: UtilitySkillDescriptor[] = [
 /**
  * Returns true when a utility skill is allowed in the given pipeline stage.
  */
-export function isUtilitySkillAllowedInStage(skillId: string, stage: string): boolean {
+export function isUtilitySkillAllowedInStage(skillId: string, stage: SkillStage): boolean {
   const descriptor = UTILITY_SKILL_DESCRIPTORS.find((d) => d.id === skillId);
   if (!descriptor) {
     return false;
@@ -179,6 +181,6 @@ export function isUtilitySkillAllowedInStage(skillId: string, stage: string): bo
 /**
  * Returns the list of utility skills that may be invoked during a given stage.
  */
-export function listUtilitySkillsForStage(stage: string): UtilitySkillDescriptor[] {
+export function listUtilitySkillsForStage(stage: SkillStage): UtilitySkillDescriptor[] {
   return UTILITY_SKILL_DESCRIPTORS.filter((d) => d.reusableInStages.includes(stage));
 }

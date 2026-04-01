@@ -57,6 +57,14 @@ describe('utility skill definitions', () => {
       }
     }
   });
+  test('reusableInStages only contains valid SkillStage values', () => {
+    const validStages = ['intent', 'draft', 'analysis', 'design'];
+    for (const descriptor of UTILITY_SKILL_DESCRIPTORS) {
+      for (const stage of descriptor.reusableInStages) {
+        expect(validStages).toContain(stage);
+      }
+    }
+  });
 });
 
 describe('sandbox default constants', () => {
@@ -73,7 +81,7 @@ describe('sandbox default constants', () => {
   });
 
   test('DEFAULT_SHELL_SANDBOX blocks dangerous commands', () => {
-    for (const cmd of ['rm', 'del', 'sudo', 'curl', 'wget', 'ssh']) {
+    for (const cmd of ['rm', 'del', 'mv', 'cp', 'ln', 'sudo', 'curl', 'wget', 'ssh']) {
       expect(DEFAULT_SHELL_SANDBOX.denyCommands).toContain(cmd);
     }
     expect(DEFAULT_SHELL_SANDBOX.allowedCwd).toBe('.runtime/workspace');
@@ -95,7 +103,7 @@ describe('sandbox default constants', () => {
 
 describe('isUtilitySkillAllowedInStage', () => {
   test('memory is allowed in all stages', () => {
-    for (const stage of ['intent', 'draft', 'analysis', 'design', 'report']) {
+    for (const stage of ['intent', 'draft', 'analysis', 'design']) {
       expect(isUtilitySkillAllowedInStage('memory', stage)).toBe(true);
     }
   });
@@ -105,7 +113,6 @@ describe('isUtilitySkillAllowedInStage', () => {
     expect(isUtilitySkillAllowedInStage('shell', 'intent')).toBe(false);
     expect(isUtilitySkillAllowedInStage('shell', 'draft')).toBe(false);
     expect(isUtilitySkillAllowedInStage('shell', 'design')).toBe(false);
-    expect(isUtilitySkillAllowedInStage('shell', 'report')).toBe(false);
   });
 
   test('returns false for unknown skill IDs', () => {

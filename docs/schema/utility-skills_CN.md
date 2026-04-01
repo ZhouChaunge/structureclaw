@@ -62,7 +62,7 @@
 在受限沙箱中执行外部命令。专为结构分析引擎调用而设计。
 
 - **白名单命令**：`python`、`python3`、`opensees`、`OpenSees`。
-- **黑名单命令**：`rm`、`del`、`format`、`mkfs`、`sudo`、`su`、`chmod`、`chown`、`curl`、`wget`、`ssh`、`nc`、`ncat`。
+- **黑名单命令**：`rm`、`del`、`mv`、`cp`、`ln`、`format`、`mkfs`、`sudo`、`su`、`chmod`、`chown`、`curl`、`wget`、`ssh`、`nc`、`ncat`。
 - **禁止的参数**：`--recursive`、`--force`、`-rf`。
 - **工作目录**：锁定为 `.runtime/workspace`。
 - **超时**：5 分钟。
@@ -114,25 +114,24 @@
 | `draft` | 结构模型初始生成 |
 | `analysis` | 基于引擎的结构分析 |
 | `design` | 设计优化与详细设计 |
-| `report` | 报告生成与导出 |
 
 ### 4.2 阶段映射
 
-| 技能 | intent | draft | analysis | design | report |
-|------|--------|-------|----------|--------|--------|
-| memory | ✓ | ✓ | ✓ | ✓ | ✓ |
-| planning | ✓ | ✓ | — | — | — |
-| read-file | ✓ | ✓ | ✓ | — | ✓ |
-| write-file | — | — | ✓ | — | ✓ |
-| replace | — | ✓ | ✓ | — | — |
-| shell | — | — | ✓ | — | — |
+| 技能 | intent | draft | analysis | design |
+|------|--------|-------|----------|--------|
+| memory | ✓ | ✓ | ✓ | ✓ |
+| planning | ✓ | ✓ | — | — |
+| read-file | ✓ | ✓ | ✓ | — |
+| write-file | — | — | ✓ | — |
+| replace | — | ✓ | ✓ | — |
+| shell | — | — | ✓ | — |
 
 关键特征：
 
 - **memory** 是唯一在所有阶段都可用的技能，因为上下文传递在各阶段普遍需要。
 - **planning** 仅限于早期阶段（intent、draft），即需要执行意图分解的位置。
 - **shell** 仅限于 analysis 阶段，因为只有分析引擎需要外部进程执行。
-- **write-file** 和 **replace** 不在 intent 和 design 阶段使用，以避免意外的副作用。
+- **write-file** 仅限于 analysis 阶段，以避免其他阶段产生意外副作用。
 
 ### 4.3 组合辅助函数
 

@@ -6,7 +6,7 @@ enName: Planning
 zhDescription: 将复杂任务分解为有序子步骤，并对执行顺序和条件进行编排。
 enDescription: Decompose complex tasks into ordered sub-steps and orchestrate execution sequence and conditions.
 triggers: []
-stages: ["intent"]
+stages: ["intent", "draft"]
 autoLoadByDefault: false
 domain: general
 requires: []

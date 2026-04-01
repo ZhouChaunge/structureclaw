@@ -6,7 +6,7 @@ enName: Write File
 zhDescription: 在沙箱范围内创建或覆写指定文件，支持文本和 JSON 输出。
 enDescription: Create or overwrite files within the sandbox scope, supporting text and JSON output.
 triggers: []
-stages: ["intent"]
+stages: ["analysis"]
 autoLoadByDefault: false
 domain: general
 requires: []

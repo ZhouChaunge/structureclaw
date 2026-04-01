@@ -62,7 +62,7 @@ Performs text replacements or JSON patches on existing files. Depends on read-fi
 Executes external commands in a restricted sandbox. Designed for structural analysis engine invocations.
 
 - **Whitelisted commands**: `python`, `python3`, `opensees`, `OpenSees`.
-- **Blocked commands**: `rm`, `del`, `format`, `mkfs`, `sudo`, `su`, `chmod`, `chown`, `curl`, `wget`, `ssh`, `nc`, `ncat`.
+- **Blocked commands**: `rm`, `del`, `mv`, `cp`, `ln`, `format`, `mkfs`, `sudo`, `su`, `chmod`, `chown`, `curl`, `wget`, `ssh`, `nc`, `ncat`.
 - **Blocked arguments**: `--recursive`, `--force`, `-rf`.
 - **Working directory**: locked to `.runtime/workspace`.
 - **Timeout**: 5 minutes.
@@ -114,25 +114,24 @@ The pipeline stages referenced in the composition model:
 | `draft` | Initial structural model generation |
 | `analysis` | Engine-based structural analysis |
 | `design` | Design optimization and detailing |
-| `report` | Report generation and export |
 
 ### 4.2 Stage Mapping
 
-| Skill | intent | draft | analysis | design | report |
-|-------|--------|-------|----------|--------|--------|
-| memory | ✓ | ✓ | ✓ | ✓ | ✓ |
-| planning | ✓ | ✓ | — | — | — |
-| read-file | ✓ | ✓ | ✓ | — | ✓ |
-| write-file | — | — | ✓ | — | ✓ |
-| replace | — | ✓ | ✓ | — | — |
-| shell | — | — | ✓ | — | — |
+| Skill | intent | draft | analysis | design |
+|-------|--------|-------|----------|--------|
+| memory | ✓ | ✓ | ✓ | ✓ |
+| planning | ✓ | ✓ | — | — |
+| read-file | ✓ | ✓ | ✓ | — |
+| write-file | — | — | ✓ | — |
+| replace | — | ✓ | ✓ | — |
+| shell | — | — | ✓ | — |
 
 Key observations:
 
 - **memory** is the only skill available across all stages, since context carriage is universally needed.
 - **planning** is restricted to early stages (intent, draft) where decomposition matters.
 - **shell** is restricted to the analysis stage, since only analysis engines require external process execution.
-- **write-file** and **replace** are excluded from intent and design to prevent unintended side effects.
+- **write-file** is restricted to the analysis stage to prevent unintended side effects in other stages.
 
 ### 4.3 Composition Helpers
 

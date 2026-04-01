@@ -6,7 +6,7 @@ enName: Memory
 zhDescription: 在会话内管理上下文记忆，支持存储、检索和清除对话历史与中间状态。
 enDescription: Manage in-session context memory — store, retrieve, and clear conversation history and intermediate state.
 triggers: []
-stages: ["intent"]
+stages: ["intent", "draft", "analysis", "design"]
 autoLoadByDefault: false
 domain: general
 requires: []
