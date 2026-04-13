@@ -1,0 +1,39 @@
+id: replace
+domain: general
+source: builtin
+name:
+  zh: 文本替换
+  en: Text Replace
+description:
+  zh: 对沙箱工作区中的文件执行精确文本替换或 JSON 补丁，用于增量更新模型和配置文件。
+  en: Perform exact text replacement or JSON patch on files in the sandboxed workspace for incremental model and configuration updates.
+triggers:
+  - replace
+  - patch
+  - 替换
+  - 补丁
+stages:
+  - draft
+  - analysis
+structureType: unknown
+structuralTypeKeys: []
+capabilities:
+  - text-replace
+  - json-patch
+grants:
+  - replace
+providesTools: []
+requires:
+  - read-file
+  - write-file
+conflicts: []
+autoLoadByDefault: true
+priority: 10
+compatibility:
+  minRuntimeVersion: 0.1.0
+  skillApiVersion: v1
+supportedAnalysisTypes: []
+supportedModelFamilies: []
+materialFamilies: []
+aliases: []
+toolHints: {}

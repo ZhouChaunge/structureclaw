@@ -1,0 +1,43 @@
+id: replace
+source: builtin
+tier: foundation
+category: utility
+enabledByDefault: true
+displayName:
+  zh: 文本替换
+  en: Text Replace
+description:
+  zh: 在沙箱工作区的文件中执行精确文本替换或 JSON 补丁操作。
+  en: Perform exact text replacement or JSON patch operations on files in the sandboxed workspace.
+requiresSkills: []
+requiresTools:
+  - read_file
+  - write_file
+tags:
+  - replace
+  - patch
+  - file
+inputSchema:
+  type: object
+  required:
+    - path
+    - oldText
+    - newText
+  properties:
+    path:
+      type: string
+    oldText:
+      type: string
+    newText:
+      type: string
+outputSchema:
+  type: object
+  properties:
+    success:
+      type: boolean
+    replacements:
+      type: integer
+errorCodes:
+  - FILE_NOT_FOUND
+  - TEXT_NOT_FOUND
+  - FILE_EXTENSION_DENIED
