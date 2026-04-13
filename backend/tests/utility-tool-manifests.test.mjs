@@ -1,10 +1,12 @@
 import { describe, expect, test } from '@jest/globals';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { loadToolManifestsFromDirectorySync } from '../dist/agent-runtime/tool-manifest-loader.js';
 import { loadSkillManifestsFromDirectorySync } from '../dist/agent-runtime/skill-manifest-loader.js';
 
-const TOOL_ROOT = path.resolve(process.cwd(), 'backend/src/agent-tools');
-const SKILL_ROOT = path.resolve(process.cwd(), 'backend/src/agent-skills');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const TOOL_ROOT = path.resolve(__dirname, '..', 'src', 'agent-tools');
+const SKILL_ROOT = path.resolve(__dirname, '..', 'src', 'agent-skills');
 
 const UTILITY_TOOL_IDS = ['memory', 'planning', 'read_file', 'replace', 'shell', 'write_file'];
 const UTILITY_SKILL_IDS = ['memory', 'planning', 'read-file', 'replace', 'shell', 'write-file'];
@@ -18,7 +20,7 @@ describe('utility tool manifests (tool.yaml)', () => {
 
   test('all 6 utility tool manifests load successfully', () => {
     const loadedIds = utilityTools.map((t) => t.id).sort();
-    expect(loadedIds).toEqual(UTILITY_TOOL_IDS);
+    expect(loadedIds).toEqual([...UTILITY_TOOL_IDS].sort());
   });
 
   test('every utility tool has tier=foundation and category=utility', () => {
@@ -79,7 +81,7 @@ describe('utility skill manifests (skill.yaml)', () => {
 
   test('all 6 utility skill manifests load successfully', () => {
     const loadedIds = utilitySkills.map((s) => s.id).sort();
-    expect(loadedIds).toEqual(UTILITY_SKILL_IDS);
+    expect(loadedIds).toEqual([...UTILITY_SKILL_IDS].sort());
   });
 
   test('every utility skill belongs to the general domain', () => {
