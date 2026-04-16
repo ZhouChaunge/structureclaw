@@ -20,8 +20,7 @@ structuralTypeKeys: []
 capabilities:
   - drawing-export
   - vendor-api-integration
-grants:
-  - generate_drawing
+grants: []
 providesTools: []
 requires: []
 conflicts: []
@@ -31,16 +30,6 @@ compatibility:
   minRuntimeVersion: 0.1.0
   skillApiVersion: v1
 software: pkpm
-supportedDrawingTypes:
-  - plan
-  - elevation
-  - section
-  - detail
-  - reinforcement
-supportedOutputFormats:
-  - dwg
-  - dxf
-  - pdf
 supportedModelFamilies:
   - frame
   - shear-wall
