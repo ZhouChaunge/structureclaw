@@ -46,7 +46,9 @@ supportedModelFamilies:
   - shear-wall
   - frame-shear-wall
   - generic
-materialFamilies: []
+materialFamilies:
+  - concrete
+  - steel
 inputSchema:
   type: object
   properties:
