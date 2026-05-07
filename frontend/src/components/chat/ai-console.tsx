@@ -8,7 +8,7 @@ import { MarkdownBody } from './markdown-body'
 import { ToolCallCard } from './tool-call-card'
 import { LanguageToggle } from '@/components/language-toggle'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { ArrowUp, Bot, BrainCircuit, Clock3, Cuboid, FileText, Loader2, Maximize2, MessageSquarePlus, Orbit, PanelLeftClose, PanelLeftOpen, PanelRightOpen, RefreshCw, Settings, Sparkles, Square, Trash2, User } from 'lucide-react'
+import { ArrowUp, Bot, BrainCircuit, Clock3, Cuboid, FileText, Loader2, Maximize2, MessageSquarePlus, Orbit, Paperclip, PanelLeftClose, PanelLeftOpen, PanelRightOpen, RefreshCw, Settings, Sparkles, Square, Trash2, User, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -1883,6 +1883,10 @@ export function AIConsole() {
   const messagesRef = useRef(messages)
   useEffect(() => { messagesRef.current = messages }, [messages])
   const [input, setInput] = useState('')
+  type UploadedFileAttachment = { fileId: string; originalName: string; relPath: string; size: number; mimeType: string }
+  const [attachedFiles, setAttachedFiles] = useState<UploadedFileAttachment[]>([])
+  const [uploadingCount, setUploadingCount] = useState(0)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [conversationId, setConversationId] = useState('')
   const [serverConversations, setServerConversations] = useState<ConversationSummary[]>([])
   const [conversationArchive, setConversationArchive] = useState<Record<string, PersistedConversation>>({})
@@ -3066,6 +3070,7 @@ export function AIConsole() {
     currentPresentationRef.current = null
     setErrorMessage('')
     setInput('')
+    setAttachedFiles([])
     setVisualizationOpen(false)
     setVisualizationSource('result')
     setModelSyncMessage('')
@@ -3224,6 +3229,9 @@ export function AIConsole() {
         engineId: undefined,
         autoCodeCheck: hasSelectedCodeCheckSkill || undefined,
         resumeFromMessage,
+        attachments: attachedFiles.length > 0
+          ? attachedFiles.map((f) => ({ fileId: f.fileId, originalName: f.originalName, relPath: f.relPath, mimeType: f.mimeType }))
+          : undefined,
       }
       const promptSnapshot = buildPromptSnapshot(trimmedInput, contextPayload as Record<string, unknown>)
       const debugSkillIds = Array.isArray((contextPayload as Record<string, unknown>).skillIds)
@@ -3662,8 +3670,61 @@ export function AIConsole() {
   const isIdle = messages.length <= 1
 
   // ── Composer input (shared between idle and active layouts) ──
+  async function handleFileSelect(files: FileList | null) {
+    if (!files || files.length === 0) return
+    const convId = conversationId || 'temp'
+    setUploadingCount((c) => c + files.length)
+    for (const file of Array.from(files)) {
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        const res = await fetch(`${API_BASE}/api/v1/files/upload?conversationId=${encodeURIComponent(convId)}`, {
+          method: 'POST',
+          body: formData,
+        })
+        const json = await res.json() as { success: boolean; files?: Array<{ fileId: string; originalName: string; relPath: string; size: number; mimeType: string }>; errors?: string[] }
+        if (!res.ok || !json.success) throw new Error(json.errors?.[0] ?? t('fileUploadError'))
+        const uploaded = json.files?.[0]
+        if (uploaded) setAttachedFiles((prev) => [...prev, uploaded])
+      } catch {
+        setErrorMessage(t('fileUploadError'))
+      }
+    }
+    setUploadingCount((c) => c - files.length)
+  }
+
   const composerInput = (
     <div className="rounded-[24px] border border-border/70 bg-background/70 p-2.5 dark:border-white/10 dark:bg-black/20">
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept=".pdf,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.gif,.webp,.bmp,.dxf,.txt"
+        aria-label={t('attachFile')}
+        className="hidden"
+        onChange={(e) => { handleFileSelect(e.target.files); e.target.value = '' }}
+      />
+      {attachedFiles.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5 px-3">
+          {attachedFiles.map((f) => (
+            <span
+              key={f.fileId}
+              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-[11px] text-muted-foreground dark:border-white/10 dark:bg-white/5"
+            >
+              <FileText className="h-3 w-3 shrink-0" />
+              <span className="max-w-[120px] truncate">{f.originalName}</span>
+              <button
+                type="button"
+                aria-label={t('removeAttachment')}
+                className="ml-0.5 rounded-full hover:text-foreground"
+                onClick={() => setAttachedFiles((prev) => prev.filter((x) => x.fileId !== f.fileId))}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       <Textarea
         ref={composerTextareaRef}
         className="min-h-[96px] resize-none border-0 bg-transparent px-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -3683,6 +3744,17 @@ export function AIConsole() {
           <Badge className="border-border/70 bg-background/70 text-muted-foreground dark:border-white/10 dark:bg-white/5" variant="outline">
             {t('conversationIdShort')} {conversationId ? conversationId.slice(0, 8) : t('notCreated')}
           </Badge>
+          <button
+            type="button"
+            aria-label={t('attachFile')}
+            title={t('attachFile')}
+            className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-[11px] text-muted-foreground transition hover:border-cyan-300/30 hover:text-foreground disabled:opacity-50 dark:border-white/10 dark:bg-white/5"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingCount > 0}
+          >
+            {uploadingCount > 0 ? <Loader2 className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />}
+            {uploadingCount > 0 ? t('uploadingFile') : t('attachFile')}
+          </button>
           {allEngines.length > 0 && (
             <div className="flex items-center gap-1.5">
               {allEngines.map((engine) => {

@@ -56,6 +56,12 @@ const sendMessageSchema = z.object({
     userDecision: z.enum(['provide_values', 'confirm_all', 'allow_auto_decide', 'revise']).optional(),
     providedValues: z.record(z.string(), z.any()).optional(),
     resumeFromMessage: z.string().max(10000).optional(),
+    attachments: z.array(z.object({
+      fileId: z.string(),
+      originalName: z.string(),
+      relPath: z.string(),
+      mimeType: z.string().optional(),
+    })).optional(),
   }).optional(),
 });
 
@@ -93,6 +99,12 @@ const streamMessageSchema = z.object({
     userDecision: z.enum(['provide_values', 'confirm_all', 'allow_auto_decide', 'revise']).optional(),
     providedValues: z.record(z.string(), z.any()).optional(),
     resumeFromMessage: z.string().max(10000).optional(),
+    attachments: z.array(z.object({
+      fileId: z.string(),
+      originalName: z.string(),
+      relPath: z.string(),
+      mimeType: z.string().optional(),
+    })).optional(),
   }).optional(),
 });
 
