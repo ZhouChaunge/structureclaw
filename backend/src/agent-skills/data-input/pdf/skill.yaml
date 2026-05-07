@@ -39,7 +39,7 @@ toolHints:
   primary: analyze_file
   future: multimodal_vision
 runtimeContract:
-  role: transformer
+  role: entry
   consumes: []
   provides:
     - designBasis

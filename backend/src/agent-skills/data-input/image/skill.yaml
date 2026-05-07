@@ -43,7 +43,7 @@ aliases:
 toolHints:
   primary: analyze_file
 runtimeContract:
-  role: transformer
+  role: entry
   consumes: []
   provides:
     - designBasis
