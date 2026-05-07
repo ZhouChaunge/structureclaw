@@ -75,16 +75,13 @@ Commands:
   check --list          List check names
   backend-regression    Full backend regression suite
   analysis-regression   Full analysis regression suite
-  llm-integration       LLM integration tests (requires LLM_API_KEY)
-                        supports: node tests/runner.mjs llm-integration [category]
-                        default: routing (only routing tests pass under LangGraph)
-                        categories: routing | extraction | pipeline | clarification
-                          [--family <family>]  (alias: --skill)
-                          [--variant <specific|generic|auto>]
-                          [--scenario <scenarioId>]
-                          [--output <artifact.json>]
-  llm-benchmark         LangGraph agent benchmark (requires LLM_API_KEY)
-                        runs full ReAct agent, evaluates end-to-end quality
+  llm-integration       LLM routing tests (deterministic, no real LLM needed)
+                        only 'routing' category is retained; extraction/pipeline/clarification removed
+                          [category]  (default: routing)
+  llm-benchmark         LangGraph agent benchmark with v2 assertions (requires LLM_API_KEY)
+                        runs full ReAct agent end-to-end with skill-hit tracing and LLM-as-Judge
+                        assertion types: structural_type | has_model | has_analysis | has_report |
+                                         skill_match | natural_language
                           [--scenario <scenarioId>]
                           [--output <results.json>]
   llm-summary <path>   Summarize LLM test artifacts by family/variant

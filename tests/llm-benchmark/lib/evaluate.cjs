@@ -1,65 +1,185 @@
 /**
  * Evaluate a completed AgentState against a scenario's expectations.
  *
+ * Supports v2 assertions (type-dispatched) with automatic v1 backward compatibility.
  * Returns a structured result with per-metric pass/fail and an overall score.
+ *
+ * evaluateScenario is async because natural_language assertions use LLM-as-Judge.
  */
-function evaluateScenario(scenario, state, durationMs) {
-  const metrics = [];
-  const expect = scenario.expect || {};
 
-  // Structural type detection
+const { extractSkillTrace } = require("./skill-trace.cjs");
+const { evaluateNaturalLanguage } = require("./judge.cjs");
+
+// ---------------------------------------------------------------------------
+// v1 → v2 auto-upgrade
+// ---------------------------------------------------------------------------
+
+/**
+ * Upgrade a v1 scenario expect object to the v2 assertions array format.
+ * v2 format is used when `expect.assertions` is already present.
+ *
+ * @param {object} expect - scenario.expect
+ * @returns {{ skills: object|undefined, assertions: object[] }}
+ */
+function upgradeExpect(expect) {
+  if (Array.isArray(expect.assertions)) {
+    // Already v2
+    return { skills: expect.skills, assertions: expect.assertions };
+  }
+
+  // v1 → v2 conversion
+  const assertions = [];
+
   if (expect.structuralType) {
-    const actual = state.structuralTypeKey || null;
-    metrics.push({
-      metric: "structuralType",
-      pass: actual === expect.structuralType,
-      expected: expect.structuralType,
-      actual: actual || "(none)",
-    });
+    assertions.push({ type: "structural_type", expected: expect.structuralType });
   }
-
-  // Model building
   if (expect.hasModel) {
-    const model = state.model;
-    const nodes = Array.isArray(model?.nodes) ? model.nodes : [];
-    const elements = Array.isArray(model?.elements) ? model.elements : [];
-    const minNodes = expect.minNodes ?? 2;
-    const minElements = expect.minElements ?? 1;
-    metrics.push({
-      metric: "model",
-      pass: !!model && nodes.length >= minNodes && elements.length >= minElements,
-      expected: `>= ${minNodes} nodes, >= ${minElements} elements`,
-      actual: model ? `${nodes.length} nodes, ${elements.length} elements` : "(none)",
+    assertions.push({
+      type: "has_model",
+      minNodes: expect.minNodes ?? 2,
+      minElements: expect.minElements ?? 1,
     });
   }
-
-  // Analysis completion
   if (expect.hasAnalysis) {
-    const analysis = state.analysisResult;
-    const hasDisplacements = analysis && (
-      Array.isArray(analysis.displacements) || Array.isArray(analysis.nodeDisplacements)
-    );
-    metrics.push({
-      metric: "analysis",
-      pass: !!analysis && (hasDisplacements || Object.keys(analysis).length > 0),
-      expected: "analysis results present",
-      actual: analysis ? "present" : "(none)",
-    });
+    assertions.push({ type: "has_analysis" });
   }
-
-  // Report generation
   if (expect.hasReport) {
-    const report = state.report;
-    const mdLength = typeof report?.markdown === "string" ? report.markdown.length : 0;
-    metrics.push({
-      metric: "report",
-      pass: mdLength > 100,
-      expected: "markdown > 100 chars",
-      actual: report ? `${mdLength} chars` : "(none)",
-    });
+    assertions.push({ type: "has_report" });
   }
 
-  // Tool call count (informational)
+  return { skills: expect.skills, assertions };
+}
+
+// ---------------------------------------------------------------------------
+// Typed assertion evaluators
+// ---------------------------------------------------------------------------
+
+function evalStructuralType(assertion, state) {
+  const actual = state.structuralTypeKey || null;
+  return {
+    metric: "structural_type",
+    pass: actual === assertion.expected,
+    expected: assertion.expected,
+    actual: actual || "(none)",
+  };
+}
+
+function evalHasModel(assertion, state) {
+  const model = state.model;
+  const nodes = Array.isArray(model?.nodes) ? model.nodes : [];
+  const elements = Array.isArray(model?.elements) ? model.elements : [];
+  const minNodes = assertion.minNodes ?? 2;
+  const minElements = assertion.minElements ?? 1;
+  return {
+    metric: "has_model",
+    pass: !!model && nodes.length >= minNodes && elements.length >= minElements,
+    expected: `>= ${minNodes} nodes, >= ${minElements} elements`,
+    actual: model ? `${nodes.length} nodes, ${elements.length} elements` : "(none)",
+  };
+}
+
+function evalHasAnalysis(_assertion, state) {
+  const analysis = state.analysisResult;
+  const hasDisplacements =
+    analysis &&
+    (Array.isArray(analysis.displacements) || Array.isArray(analysis.nodeDisplacements));
+  return {
+    metric: "has_analysis",
+    pass: !!analysis && (hasDisplacements || Object.keys(analysis).length > 0),
+    expected: "analysis results present",
+    actual: analysis ? "present" : "(none)",
+  };
+}
+
+function evalHasReport(_assertion, state) {
+  const report = state.report;
+  const mdLength = typeof report?.markdown === "string" ? report.markdown.length : 0;
+  return {
+    metric: "has_report",
+    pass: mdLength > 100,
+    expected: "markdown > 100 chars",
+    actual: report ? `${mdLength} chars` : "(none)",
+  };
+}
+
+function evalSkillMatch(assertion, state) {
+  const trace = extractSkillTrace(Array.isArray(state.messages) ? state.messages : []);
+  const actual = trace?.skillId || null;
+  const primary = assertion.primary;
+  const mayAlsoMatch = Array.isArray(assertion.mayAlsoMatch) ? assertion.mayAlsoMatch : [];
+  const allowed = primary ? [primary, ...mayAlsoMatch] : mayAlsoMatch;
+  const pass = actual !== null && allowed.includes(actual);
+  return {
+    metric: "skill_match",
+    pass,
+    expected: primary ? `${primary}${mayAlsoMatch.length ? ` (or: ${mayAlsoMatch.join(", ")})` : ""}` : "(any)",
+    actual: actual || "(none)",
+  };
+}
+
+async function evalNaturalLanguage(assertion, state) {
+  const result = await evaluateNaturalLanguage(assertion.description, state);
+  const suffix = result.reason ? ` — ${result.reason}` : "";
+  return {
+    metric: "natural_language",
+    pass: result.pass,
+    expected: assertion.description,
+    actual: result.pass ? "satisfied" : `not satisfied${suffix}`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Main evaluator
+// ---------------------------------------------------------------------------
+
+/**
+ * Dispatch a single assertion to its typed evaluator.
+ *
+ * @param {object} assertion - v2 assertion object
+ * @param {object} state - AgentState
+ * @returns {Promise<{ metric: string, pass: boolean, expected: string, actual: string }>}
+ */
+async function dispatchAssertion(assertion, state) {
+  switch (assertion.type) {
+    case "structural_type":
+      return evalStructuralType(assertion, state);
+    case "has_model":
+      return evalHasModel(assertion, state);
+    case "has_analysis":
+      return evalHasAnalysis(assertion, state);
+    case "has_report":
+      return evalHasReport(assertion, state);
+    case "skill_match":
+      return evalSkillMatch(assertion, state);
+    case "natural_language":
+      return evalNaturalLanguage(assertion, state);
+    default:
+      return {
+        metric: assertion.type || "unknown",
+        pass: false,
+        expected: "(unknown assertion type)",
+        actual: String(assertion.type),
+      };
+  }
+}
+
+/**
+ * Evaluate a completed AgentState against a scenario's expectations.
+ *
+ * @param {object} scenario - benchmark scenario (v1 or v2 format)
+ * @param {object} state - AgentState returned by service.runFull
+ * @param {number} durationMs - elapsed time in milliseconds
+ * @returns {Promise<object>} evaluation result
+ */
+async function evaluateScenario(scenario, state, durationMs) {
+  const metrics = [];
+  const { assertions } = upgradeExpect(scenario.expect || {});
+
+  for (const assertion of assertions) {
+    metrics.push(await dispatchAssertion(assertion, state));
+  }
+
+  // Tool call count (informational — always measured)
   let toolCallCount = 0;
   const messages = Array.isArray(state.messages) ? state.messages : [];
   for (const msg of messages) {

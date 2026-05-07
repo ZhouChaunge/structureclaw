@@ -1,4 +1,4 @@
-name: LLM Integration Tests (Routing)
+name: LLM Benchmark
 
 on:
   workflow_dispatch:
@@ -7,10 +7,10 @@ on:
         description: "LLM model name (leave empty for default)"
         required: false
         default: ""
-      filter:
-        description: "Test category filter — only 'routing' is supported (extraction/pipeline/clarification removed)"
+      scenario:
+        description: "Run a single scenario by ID (leave empty for all)"
         required: false
-        default: "routing"
+        default: ""
   issue_comment:
     types: [created]
   push:
@@ -23,7 +23,7 @@ on:
       - 'sclaw'
       - 'sclaw_cn'
       - 'package.json'
-      - '.github/workflows/llm-integration.yml'
+      - '.github/workflows/llm-benchmark.yml'
 
 permissions:
   contents: read
@@ -38,12 +38,12 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'push' ||
       (github.event.issue.pull_request &&
-       contains(github.event.comment.body, '/test-llm') &&
+       contains(github.event.comment.body, '/test-llm-benchmark') &&
        (github.event.comment.user.login == 'guyi2000' || github.event.comment.user.login == 'qinsz01'))
     runs-on: ubuntu-latest
     outputs:
       pr_sha: ${{ steps.get-ref.outputs.sha }}
-      filter_arg: ${{ steps.get-ref.outputs.filter_arg }}
+      scenario_arg: ${{ steps.get-ref.outputs.scenario_arg }}
       trigger_issue_number: ${{ steps.get-ref.outputs.issue_number }}
       trigger_comment_user: ${{ steps.get-ref.outputs.comment_user }}
     steps:
@@ -61,13 +61,13 @@ jobs:
               exit 1
             fi
             echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-            FILTER=$(echo "$COMMENT_BODY" | sed -n 's|/test-llm[[:space:]]*\(.*\)|\1|p' | xargs)
-            echo "filter_arg=$FILTER" >> "$GITHUB_OUTPUT"
+            SCENARIO=$(echo "$COMMENT_BODY" | sed -n 's|/test-llm-benchmark[[:space:]]*\(.*\)|\1|p' | xargs)
+            echo "scenario_arg=$SCENARIO" >> "$GITHUB_OUTPUT"
             echo "issue_number=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
             echo "comment_user=${{ github.event.comment.user.login }}" >> "$GITHUB_OUTPUT"
           else
             echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-            echo "filter_arg=${{ github.event.inputs.filter }}" >> "$GITHUB_OUTPUT"
+            echo "scenario_arg=${{ github.event.inputs.scenario }}" >> "$GITHUB_OUTPUT"
             echo "issue_number=" >> "$GITHUB_OUTPUT"
             echo "comment_user=" >> "$GITHUB_OUTPUT"
           fi
@@ -81,9 +81,9 @@ jobs:
           script: |
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const body = [
-              `✅ **LLM Integration Tests Triggered!**`,
+              `✅ **LLM Benchmark Triggered!**`,
               ``,
-              `@${context.payload.comment.user.login}, I've started the workflow for you.`,
+              `@${context.payload.comment.user.login}, I've started the benchmark run.`,
               `Please click the link below to monitor progress and **approve the deployment** to the test environment:`,
               ``,
               `🚀 **[View Action Run Details](${runUrl})**`,
@@ -96,7 +96,7 @@ jobs:
               body: body
             })
 
-  llm-integration:
+  llm-benchmark:
     needs: check-permission
     permissions:
       contents: read
@@ -104,9 +104,9 @@ jobs:
     environment: test
     runs-on: ubuntu-latest
     concurrency:
-      group: llm-integration-${{ github.event.issue.number || github.sha }}
+      group: llm-benchmark-${{ github.event.issue.number || github.sha }}
       cancel-in-progress: true
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
@@ -133,28 +133,43 @@ jobs:
       - name: Build via sclaw
         run: node ./sclaw build
 
-      - name: Run LLM integration tests
-        id: run-tests
+      - name: Run LLM benchmark
+        id: run-benchmark
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_MODEL: ${{ github.event.inputs.llm_model || vars.LLM_MODEL }}
           LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
+          LLM_JUDGE_MODEL: ${{ vars.LLM_JUDGE_MODEL }}
           LLM_LOG_ENABLED: "true"
           LLM_LOG_DIR: ${{ github.workspace }}/.structureclaw/logs
-          DATABASE_URL: "file:.structureclaw/data/structureclaw-llm-ci.db"
+          DATABASE_URL: "file:.structureclaw/data/structureclaw-benchmark-ci.db"
         run: |
           set -o pipefail
-          node tests/runner.mjs llm-integration routing 2>&1 | tee test-output.txt
+          SCENARIO_ARG="${{ needs.check-permission.outputs.scenario_arg }}"
+          if [ -n "$SCENARIO_ARG" ]; then
+            node tests/runner.mjs llm-benchmark --scenario "$SCENARIO_ARG" --output benchmark-results.json 2>&1 | tee test-output.txt
+          else
+            node tests/runner.mjs llm-benchmark --output benchmark-results.json 2>&1 | tee test-output.txt
+          fi
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            benchmark-results.json
+            .structureclaw/logs/
 
       - name: Extract test summary
         if: always()
         id: summary
         run: |
           if [ ! -f test-output.txt ]; then
-            echo "summary=Tests did not produce output." >> "$GITHUB_OUTPUT"
+            echo "summary=Benchmark did not produce output." >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          SUMMARY=$(grep -B 1 -A 3 '^Results:' test-output.txt || echo "No summary found")
+          SUMMARY=$(grep -B 1 -A 5 '^Benchmark Results:' test-output.txt || echo "No summary found")
           echo "summary<<EOF" >> "$GITHUB_OUTPUT"
           echo "$SUMMARY" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
@@ -168,22 +183,22 @@ jobs:
           script: |
             const issueNumber = Number('${{ needs.check-permission.outputs.trigger_issue_number }}');
             const commentUser = '${{ needs.check-permission.outputs.trigger_comment_user }}';
-            const success = '${{ steps.run-tests.outcome }}' === 'success';
+            const success = '${{ steps.run-benchmark.outcome }}' === 'success';
             const summary = ${{ toJson(steps.summary.outputs.summary) }};
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
             const icon = success ? '✅' : '❌';
             const status = success ? 'PASSED' : 'FAILED';
             const body = [
-              `${icon} **LLM Integration Tests ${status}**`,
+              `${icon} **LLM Benchmark ${status}**`,
               ``,
-              `@${commentUser}, the test run has completed.`,
+              `@${commentUser}, the benchmark run has completed.`,
               ``,
               `\`\`\``,
               summary,
               `\`\`\``,
               ``,
-              `📦 **[Download Logs](${runUrl})** or check the Artifacts section.`,
+              `📦 **[Download Results](${runUrl})** or check the Artifacts section.`,
             ].join('\n');
 
             await github.rest.issues.createComment({
@@ -192,12 +207,3 @@ jobs:
               repo: context.repo.repo,
               body: body
             })
-
-      - name: Upload LLM call logs
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: llm-logs-ubuntu
-          path: .structureclaw/logs/*.jsonl
-          retention-days: 7
-          if-no-files-found: ignore

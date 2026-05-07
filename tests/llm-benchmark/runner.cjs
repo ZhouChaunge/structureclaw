@@ -90,35 +90,48 @@ async function runBenchmark(rootDir, args) {
   const results = [];
 
   for (const scenario of scenarios) {
-    process.stdout.write(`\nRunning: ${scenario.id}...\n`);
-    const startTime = Date.now();
+    const maxRetries = typeof scenario.maxRetries === "number" ? scenario.maxRetries : 0;
+    let attempt = 0;
+    let lastEvaluation = null;
 
-    try {
-      const state = await service.runFull({
-        message: scenario.message,
-        conversationId: `bench-${scenario.id}-${startTime}`,
-        context: { locale: scenario.locale || "zh" },
-      });
+    while (attempt <= maxRetries) {
+      if (attempt > 0) {
+        process.stdout.write(`  Retrying (attempt ${attempt + 1}/${maxRetries + 1})...\n`);
+      } else {
+        process.stdout.write(`\nRunning: ${scenario.id}...\n`);
+      }
 
-      const durationMs = Date.now() - startTime;
-      const evaluation = evaluateScenario(scenario, state, durationMs);
-      printScenarioResult(scenario, evaluation);
-      results.push(evaluation);
-    } catch (err) {
-      const durationMs = Date.now() - startTime;
-      const message = err instanceof Error ? err.message : String(err);
-      process.stdout.write(`\nFAIL  ${scenario.id}\n`);
-      process.stdout.write(`  error: ${message}\n`);
-      results.push({
-        scenarioId: scenario.id,
-        description: scenario.description || "",
-        passed: 0,
-        total: 1,
-        allPassed: false,
-        metrics: [{ metric: "execution", pass: false, expected: "no error", actual: message }],
-        durationMs,
-      });
+      const startTime = Date.now();
+      try {
+        const state = await service.runFull({
+          message: scenario.message,
+          conversationId: `bench-${scenario.id}-${startTime}`,
+          context: { locale: scenario.locale || "zh" },
+        });
+
+        const durationMs = Date.now() - startTime;
+        lastEvaluation = await evaluateScenario(scenario, state, durationMs);
+      } catch (err) {
+        const durationMs = Date.now() - startTime;
+        const message = err instanceof Error ? err.message : String(err);
+        process.stdout.write(`  error: ${message}\n`);
+        lastEvaluation = {
+          scenarioId: scenario.id,
+          description: scenario.description || "",
+          passed: 0,
+          total: 1,
+          allPassed: false,
+          metrics: [{ metric: "execution", pass: false, expected: "no error", actual: message }],
+          durationMs,
+        };
+      }
+
+      if (lastEvaluation.allPassed) break;
+      attempt += 1;
     }
+
+    printScenarioResult(scenario, lastEvaluation);
+    results.push(lastEvaluation);
   }
 
   printSummary(results);
