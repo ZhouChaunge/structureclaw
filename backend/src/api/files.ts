@@ -57,18 +57,6 @@ export interface UploadedFileMetadata {
   uploadedAt: string;
 }
 
-/** Validate path is inside UPLOAD_DIR to prevent traversal. */
-function safeUploadResolve(conversationId: string, filename: string): string {
-  // Sanitize: strip any path separators and keep only the base name
-  const safeName = path.basename(filename).replace(/[^a-zA-Z0-9._\-\u4e00-\u9fa5]/g, '_');
-  const resolved = path.resolve(UPLOAD_DIR, conversationId, safeName);
-  const prefix = path.resolve(UPLOAD_DIR);
-  if (!resolved.startsWith(prefix + path.sep) && resolved !== prefix) {
-    throw new Error('Path traversal blocked');
-  }
-  return resolved;
-}
-
 export async function fileRoutes(fastify: FastifyInstance) {
   // ── GET /serve — serve a stored file by path ──────────────────────────────
   fastify.get('/serve', async (req: FastifyRequest, reply: FastifyReply) => {
@@ -126,6 +114,7 @@ export async function fileRoutes(fastify: FastifyInstance) {
 
       const originalName = part.filename || 'upload';
       const ext = path.extname(originalName).toLowerCase();
+      const mimeType: string = part.mimetype || 'application/octet-stream';
 
       if (!UPLOAD_EXT_WHITELIST.has(ext)) {
         // Drain the stream to prevent hang
@@ -134,7 +123,13 @@ export async function fileRoutes(fastify: FastifyInstance) {
         continue;
       }
 
-      const mimeType: string = part.mimetype || 'application/octet-stream';
+      if (!UPLOAD_MIME_WHITELIST.has(mimeType)) {
+        // MIME type not in whitelist — defense-in-depth check (MIME can be spoofed, extension check is primary)
+        for await (const _chunk of part.file) { /* drain */ }
+        errors.push({ name: originalName, error: `MIME type not allowed: ${mimeType}` });
+        continue;
+      }
+
       const fileId = crypto.randomUUID();
       const storedName = `${fileId}${ext}`;
       const storedPath = path.join(conversationUploadDir, storedName);
