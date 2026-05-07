@@ -41,31 +41,40 @@ const IMAGE_MIME: Record<string, string> = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Resolve an uploaded file path safely inside UPLOAD_DIR or workspaceRoot. */
+/** Returns true only when candidatePath is exactly root or a strict descendant. */
+function isPathWithinRoot(candidatePath: string, root: string): boolean {
+  const c = path.normalize(candidatePath);
+  const r = path.normalize(root);
+  return c === r || c.startsWith(r + path.sep);
+}
+
+/** Resolve an uploaded file path safely inside UPLOAD_DIR or workspaceRoot.
+ *
+ * Relative paths (e.g. ".uploads/<conversationId>/<file>") are resolved
+ * against runtimeBaseDir so the leading ".uploads/" segment is preserved
+ * and the final path lands inside UPLOAD_DIR correctly.
+ */
 function resolveUploadPath(
   relPath: string,
   workspaceRoot: string | undefined,
 ): string {
+  const runtimeDir = path.resolve(UPLOAD_DIR, '..');
   // Absolute paths: allow only inside UPLOAD_DIR or workspaceRoot
   if (path.isAbsolute(relPath)) {
     const absNorm = path.normalize(relPath);
-    const uploadPrefix = path.normalize(UPLOAD_DIR);
-    const wsPrefix = workspaceRoot ? path.normalize(workspaceRoot) : null;
-    if (absNorm.startsWith(uploadPrefix) || (wsPrefix && absNorm.startsWith(wsPrefix))) {
+    if (isPathWithinRoot(absNorm, UPLOAD_DIR) || (workspaceRoot && isPathWithinRoot(absNorm, workspaceRoot))) {
       return absNorm;
     }
     throw new Error('Access denied: path outside allowed directories');
   }
-  // Relative: resolve under UPLOAD_DIR first, then workspaceRoot
-  const uploadResolved = path.resolve(UPLOAD_DIR, relPath);
-  const uploadPrefix = path.normalize(UPLOAD_DIR) + path.sep;
-  if (uploadResolved.startsWith(uploadPrefix) || uploadResolved === path.normalize(UPLOAD_DIR)) {
+  // Relative: resolve under runtimeBaseDir so ".uploads/<conv>/<file>" resolves correctly
+  const uploadResolved = path.resolve(runtimeDir, relPath);
+  if (isPathWithinRoot(uploadResolved, UPLOAD_DIR)) {
     return uploadResolved;
   }
   if (workspaceRoot) {
     const wsResolved = path.resolve(workspaceRoot, relPath);
-    const wsPrefix = path.normalize(workspaceRoot) + path.sep;
-    if (wsResolved.startsWith(wsPrefix) || wsResolved === path.normalize(workspaceRoot)) {
+    if (isPathWithinRoot(wsResolved, workspaceRoot)) {
       return wsResolved;
     }
   }
@@ -270,7 +279,7 @@ export function createAnalyzeFileTool() {
           for (const sheetName of workbook.SheetNames) {
             const ws = workbook.Sheets[sheetName];
             const jsonData: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as unknown[][];
-            const headers = (jsonData[0] as unknown[]).map(String);
+            const headers = (jsonData[0] as unknown[] ?? []).map(String);
             const rows = jsonData.slice(1, maxRows + 1).map((row) =>
               (row as unknown[]).map((cell) => (cell === null || cell === undefined ? '' : cell)),
             );
@@ -298,16 +307,17 @@ export function createAnalyzeFileTool() {
 
         if (ext === '.csv' || ext === '.tsv') {
           const maxRows = Math.min(input.maxRows ?? CSV_MAX_ROWS, 500);
+          const allLines = text.split(/\r?\n/);
           const parsed = parseCsv(text, maxRows);
           return JSON.stringify({
             success: true,
             type: 'csv',
             ext,
             size,
-            totalLines: text.split(/\r?\n/).length,
+            totalLines: allLines.length,
             headers: parsed.headers,
             rows: parsed.rows,
-            truncated: text.split(/\r?\n/).length - 1 > maxRows,
+            truncated: allLines.length - 1 > maxRows,
           });
         }
 

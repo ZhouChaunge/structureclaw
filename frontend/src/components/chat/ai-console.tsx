@@ -3682,8 +3682,8 @@ export function AIConsole() {
           method: 'POST',
           body: formData,
         })
-        const json = await res.json() as { success: boolean; files?: Array<{ fileId: string; originalName: string; relPath: string; size: number; mimeType: string }>; errors?: string[] }
-        if (!res.ok || !json.success) throw new Error(json.errors?.[0] ?? t('fileUploadError'))
+        const json = await res.json() as { success: boolean; files?: Array<{ fileId: string; originalName: string; relPath: string; size: number; mimeType: string }>; errors?: Array<{ name: string; error: string }> }
+        if (!res.ok || !json.success) throw new Error(json.errors?.[0]?.error ?? t('fileUploadError'))
         const uploaded = json.files?.[0]
         if (uploaded) setAttachedFiles((prev) => [...prev, uploaded])
       } catch {
