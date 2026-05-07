@@ -42,7 +42,7 @@ const IMAGE_MIME: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 /** Returns true only when candidatePath is exactly root or a strict descendant. */
-function isPathWithinRoot(candidatePath: string, root: string): boolean {
+export function isPathWithinRoot(candidatePath: string, root: string): boolean {
   const c = path.normalize(candidatePath);
   const r = path.normalize(root);
   return c === r || c.startsWith(r + path.sep);
@@ -54,7 +54,7 @@ function isPathWithinRoot(candidatePath: string, root: string): boolean {
  * against runtimeBaseDir so the leading ".uploads/" segment is preserved
  * and the final path lands inside UPLOAD_DIR correctly.
  */
-function resolveUploadPath(
+export function resolveUploadPath(
   relPath: string,
   workspaceRoot: string | undefined,
 ): string {
