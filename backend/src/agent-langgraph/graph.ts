@@ -296,7 +296,7 @@ function createCallModelNode(
 // Conditional edge: should we continue or end?
 // ---------------------------------------------------------------------------
 
-function shouldContinue(
+export function shouldContinue(
   state: AgentState,
 ): 'tools' | typeof END {
   const msgs = Array.isArray(state.messages) ? state.messages : [];
