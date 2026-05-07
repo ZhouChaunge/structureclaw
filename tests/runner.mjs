@@ -81,10 +81,10 @@ Commands:
                         categories: routing | extraction | pipeline | clarification
                           [--family <family>]  (alias: --skill)
                           [--variant <specific|generic|auto>]
-                          [--scenario <scenarioId>]
-                          [--output <artifact.json>]
-  llm-benchmark         LangGraph agent benchmark (requires LLM_API_KEY)
-                        runs the full ReAct agent and evaluates scenario quality
+  llm-benchmark         LangGraph agent benchmark with v2 assertions (requires LLM_API_KEY)
+                        runs full ReAct agent end-to-end with skill-hit tracing and LLM-as-Judge
+                        assertion types: structural_type | has_model | has_analysis | has_report |
+                                         skill_match | natural_language
                           [--scenario <scenarioId>]
                           [--output <results.json>]
   llm-summary <path>   Summarize LLM test artifacts by family/variant
