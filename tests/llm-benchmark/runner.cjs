@@ -90,7 +90,7 @@ async function runBenchmark(rootDir, args) {
   const results = [];
 
   for (const scenario of scenarios) {
-    const maxRetries = typeof scenario.maxRetries === "number" ? scenario.maxRetries : 0;
+    const maxRetries = Math.max(0, typeof scenario.maxRetries === "number" ? scenario.maxRetries : 0);
     let attempt = 0;
     let lastEvaluation = null;
 
@@ -102,6 +102,7 @@ async function runBenchmark(rootDir, args) {
       }
 
       const startTime = Date.now();
+      let executionError = false;
       try {
         const state = await service.runFull({
           message: scenario.message,
@@ -112,6 +113,7 @@ async function runBenchmark(rootDir, args) {
         const durationMs = Date.now() - startTime;
         lastEvaluation = await evaluateScenario(scenario, state, durationMs);
       } catch (err) {
+        executionError = true;
         const durationMs = Date.now() - startTime;
         const message = err instanceof Error ? err.message : String(err);
         process.stdout.write(`  error: ${message}\n`);
@@ -127,7 +129,22 @@ async function runBenchmark(rootDir, args) {
       }
 
       if (lastEvaluation.allPassed) break;
+      // Don't retry on execution errors (infra/config issues are deterministic)
+      if (executionError) break;
       attempt += 1;
+    }
+
+    // Guard against null (e.g. negative maxRetries skipped the loop)
+    if (!lastEvaluation) {
+      lastEvaluation = {
+        scenarioId: scenario.id,
+        description: scenario.description || "",
+        passed: 0,
+        total: 1,
+        allPassed: false,
+        metrics: [{ metric: "execution", pass: false, expected: "no evaluation produced", actual: "(none)" }],
+        durationMs: 0,
+      };
     }
 
     printScenarioResult(scenario, lastEvaluation);

@@ -19,12 +19,11 @@ const { evaluateNaturalLanguage } = require("./judge.cjs");
  * v2 format is used when `expect.assertions` is already present.
  *
  * @param {object} expect - scenario.expect
- * @returns {{ skills: object|undefined, assertions: object[] }}
+ * @returns {{ assertions: object[] }}
  */
 function upgradeExpect(expect) {
   if (Array.isArray(expect.assertions)) {
-    // Already v2
-    return { skills: expect.skills, assertions: expect.assertions };
+    return { assertions: expect.assertions };
   }
 
   // v1 → v2 conversion
@@ -47,7 +46,7 @@ function upgradeExpect(expect) {
     assertions.push({ type: "has_report" });
   }
 
-  return { skills: expect.skills, assertions };
+  return { assertions };
 }
 
 // ---------------------------------------------------------------------------
@@ -80,14 +79,25 @@ function evalHasModel(assertion, state) {
 
 function evalHasAnalysis(_assertion, state) {
   const analysis = state.analysisResult;
+  if (!analysis) {
+    return {
+      metric: "has_analysis",
+      pass: false,
+      expected: "analysis results present",
+      actual: "(none)",
+    };
+  }
   const hasDisplacements =
-    analysis &&
-    (Array.isArray(analysis.displacements) || Array.isArray(analysis.nodeDisplacements));
+    Array.isArray(analysis.displacements) || Array.isArray(analysis.nodeDisplacements);
+  const hasReactions =
+    Array.isArray(analysis.reactions) || Array.isArray(analysis.nodeReactions);
+  const hasMemberForces = Array.isArray(analysis.memberForces);
+  const pass = hasDisplacements || hasReactions || hasMemberForces;
   return {
     metric: "has_analysis",
-    pass: !!analysis && (hasDisplacements || Object.keys(analysis).length > 0),
-    expected: "analysis results present",
-    actual: analysis ? "present" : "(none)",
+    pass,
+    expected: "analysis results with displacements, reactions, or member forces",
+    actual: pass ? "present" : `keys: ${Object.keys(analysis).join(", ") || "(empty)"}`,
   };
 }
 
@@ -108,6 +118,17 @@ function evalSkillMatch(assertion, state) {
   const primary = assertion.primary;
   const mayAlsoMatch = Array.isArray(assertion.mayAlsoMatch) ? assertion.mayAlsoMatch : [];
   const allowed = primary ? [primary, ...mayAlsoMatch] : mayAlsoMatch;
+
+  // If no allowed skills specified, match any non-null skill
+  if (allowed.length === 0) {
+    return {
+      metric: "skill_match",
+      pass: actual !== null,
+      expected: "(any skill)",
+      actual: actual || "(none)",
+    };
+  }
+
   const pass = actual !== null && allowed.includes(actual);
   return {
     metric: "skill_match",
@@ -155,10 +176,10 @@ async function dispatchAssertion(assertion, state) {
       return evalNaturalLanguage(assertion, state);
     default:
       return {
-        metric: assertion.type || "unknown",
+        metric: `unknown:${assertion.type || "undefined"}`,
         pass: false,
-        expected: "(unknown assertion type)",
-        actual: String(assertion.type),
+        expected: "valid assertion type (structural_type, has_model, has_analysis, has_report, skill_match, natural_language)",
+        actual: `unsupported type: ${assertion.type || "(undefined)"}`,
       };
   }
 }
@@ -176,7 +197,17 @@ async function evaluateScenario(scenario, state, durationMs) {
   const { assertions } = upgradeExpect(scenario.expect || {});
 
   for (const assertion of assertions) {
-    metrics.push(await dispatchAssertion(assertion, state));
+    try {
+      metrics.push(await dispatchAssertion(assertion, state));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      metrics.push({
+        metric: assertion.type || "unknown",
+        pass: false,
+        expected: "(assertion ran without error)",
+        actual: `error: ${msg}`,
+      });
+    }
   }
 
   // Tool call count (informational — always measured)

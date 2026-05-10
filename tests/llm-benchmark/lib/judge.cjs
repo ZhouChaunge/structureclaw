@@ -10,11 +10,11 @@
  */
 
 const https = require("node:https");
-const http = require("node:http");
 
 const JUDGE_TEMPERATURE = 0;
 const JUDGE_MAX_TOKENS = 500;
 const JUDGE_TIMEOUT_MS = 30_000;
+const MAX_RESPONSE_BODY = 100_000; // 100KB
 
 /**
  * Build a compact summary of the agent output for the judge prompt.
@@ -77,7 +77,41 @@ function buildJudgePrompt(description, agentOutput) {
 }
 
 /**
- * Call the LLM judge API.
+ * Extract JSON from LLM response, handling markdown fences and nested braces.
+ * @param {string} response - raw LLM response
+ * @returns {object|null} parsed object or null
+ */
+function extractJudgeJson(response) {
+  let text = response.trim();
+
+  // Strip markdown code fences
+  const fenceMatch = text.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/);
+  if (fenceMatch) {
+    text = fenceMatch[1].trim();
+  }
+
+  // Try full parse first
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Fall through to brace-matching
+  }
+
+  // Find balanced braces — greedy match from first { to last }
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start !== -1 && end > start) {
+    try {
+      return JSON.parse(text.slice(start, end + 1));
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Call the LLM judge API (HTTPS only).
  * @param {string} prompt
  * @returns {Promise<string>} raw response text
  */
@@ -88,6 +122,11 @@ function callLlmJudgeApi(prompt) {
     process.env.LLM_JUDGE_BASE_URL || process.env.LLM_BASE_URL || "https://api.openai.com";
   const base = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
 
+  const url = new URL(`${base}/v1/chat/completions`);
+  if (url.protocol !== "https:") {
+    throw new Error(`Judge API must use HTTPS, got: ${url.protocol}`);
+  }
+
   const bodyStr = JSON.stringify({
     model,
     temperature: JUDGE_TEMPERATURE,
@@ -95,15 +134,13 @@ function callLlmJudgeApi(prompt) {
     messages: [{ role: "user", content: prompt }],
   });
 
-  const url = new URL(`${base}/v1/chat/completions`);
-  const isHttps = url.protocol === "https:";
-  const lib = isHttps ? https : http;
-
   return new Promise((resolve, reject) => {
-    const req = lib.request(
+    let settled = false;
+
+    const req = https.request(
       {
         hostname: url.hostname,
-        port: url.port || (isHttps ? 443 : 80),
+        port: url.port || 443,
         path: url.pathname + url.search,
         method: "POST",
         headers: {
@@ -116,29 +153,47 @@ function callLlmJudgeApi(prompt) {
         let data = "";
         res.on("data", (chunk) => {
           data += chunk;
+          if (data.length > MAX_RESPONSE_BODY) {
+            if (!settled) {
+              settled = true;
+              req.destroy(new Error("Judge response body exceeded 100KB limit"));
+            }
+          }
         });
         res.on("end", () => {
+          if (settled) return;
           if (res.statusCode && res.statusCode >= 400) {
+            settled = true;
             reject(
-              new Error(`Judge API returned HTTP ${res.statusCode}: ${data.slice(0, 200)}`),
+              new Error(`Judge API returned HTTP ${res.statusCode}`),
             );
             return;
           }
           try {
             const parsed = JSON.parse(data);
             const content = parsed.choices?.[0]?.message?.content ?? "";
+            settled = true;
             resolve(content.trim());
           } catch {
-            reject(new Error(`Failed to parse judge response: ${data.slice(0, 200)}`));
+            settled = true;
+            reject(new Error(`Failed to parse judge response: ${data.slice(0, 100)}`));
           }
         });
       },
     );
 
     req.setTimeout(JUDGE_TIMEOUT_MS, () => {
-      req.destroy(new Error("LLM judge request timed out after 30s"));
+      if (!settled) {
+        settled = true;
+        req.destroy(new Error("LLM judge request timed out after 30s"));
+      }
     });
-    req.on("error", reject);
+    req.on("error", (err) => {
+      if (!settled) {
+        settled = true;
+        reject(err);
+      }
+    });
     req.write(bodyStr);
     req.end();
   });
@@ -157,12 +212,10 @@ async function evaluateNaturalLanguage(description, state) {
 
   try {
     const response = await callLlmJudgeApi(prompt);
-    // Extract JSON — response may be wrapped in markdown code fences
-    const jsonMatch = response.match(/\{[\s\S]*?\}/);
-    if (!jsonMatch) {
+    const result = extractJudgeJson(response);
+    if (!result) {
       return { pass: false, reason: `Judge returned non-JSON: ${response.slice(0, 100)}` };
     }
-    const result = JSON.parse(jsonMatch[0]);
     return {
       pass: result.pass === true,
       reason: typeof result.reason === "string" ? result.reason : undefined,
