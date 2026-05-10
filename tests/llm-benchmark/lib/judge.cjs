@@ -116,13 +116,18 @@ function extractJudgeJson(response) {
  * @returns {Promise<string>} raw response text
  */
 function callLlmJudgeApi(prompt) {
-  const apiKey = process.env.LLM_JUDGE_API_KEY || process.env.LLM_API_KEY || "";
+  const apiKey = process.env.LLM_JUDGE_API_KEY || process.env.LLM_API_KEY;
+  if (!apiKey) {
+    throw new Error("LLM_JUDGE_API_KEY or LLM_API_KEY is required for judge evaluation");
+  }
   const model = process.env.LLM_JUDGE_MODEL || process.env.LLM_MODEL || "gpt-4o-mini";
   const rawBase =
     process.env.LLM_JUDGE_BASE_URL || process.env.LLM_BASE_URL || "https://api.openai.com";
-  const base = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
+  let base = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
 
-  const url = new URL(`${base}/v1/chat/completions`);
+  // Build URL handling bases that already include /v1
+  const chatPath = base.endsWith("/v1") ? "/chat/completions" : "/v1/chat/completions";
+  const url = new URL(`${base}${chatPath}`);
   if (url.protocol !== "https:") {
     throw new Error(`Judge API must use HTTPS, got: ${url.protocol}`);
   }
