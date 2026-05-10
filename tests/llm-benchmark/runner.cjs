@@ -2,7 +2,6 @@ const path = require("node:path");
 const fs = require("node:fs");
 const { pathToFileURL } = require("node:url");
 
-const { resolveIntegrationContext } = require("../llm-integration/lib/context.js");
 const { evaluateScenario } = require("./lib/evaluate.cjs");
 const { printScenarioResult, printSummary, writeJsonOutput } = require("./lib/report.cjs");
 
@@ -48,7 +47,8 @@ function parseBenchmarkOptions(args) {
 
 async function runBenchmark(rootDir, args) {
   const options = parseBenchmarkOptions(args);
-  const context = resolveIntegrationContext(rootDir);
+  const { resolveRegressionContext } = require("../regression/shared.js");
+  const context = resolveRegressionContext(rootDir);
 
   // Inject LLM env vars
   for (const [k, v] of Object.entries(context.env)) {
