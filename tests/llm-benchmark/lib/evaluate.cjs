@@ -77,6 +77,17 @@ function evalHasModel(assertion, state) {
   };
 }
 
+function hasResultField(obj, names) {
+  if (!obj || typeof obj !== "object") return false;
+  for (const name of names) {
+    const val = obj[name];
+    if (!val) continue;
+    if (Array.isArray(val) && val.length > 0) return true;
+    if (typeof val === "object" && Object.keys(val).length > 0) return true;
+  }
+  return false;
+}
+
 function evalHasAnalysis(_assertion, state) {
   const analysis = state.analysisResult;
   if (!analysis) {
@@ -87,16 +98,12 @@ function evalHasAnalysis(_assertion, state) {
       actual: "(none)",
     };
   }
-  const hasDisplacements =
-    Array.isArray(analysis.displacements) || Array.isArray(analysis.nodeDisplacements);
-  const hasReactions =
-    Array.isArray(analysis.reactions) || Array.isArray(analysis.nodeReactions);
-  const hasMemberForces = Array.isArray(analysis.memberForces);
-  const pass = hasDisplacements || hasReactions || hasMemberForces;
+  const resultKeys = ["displacements", "nodeDisplacements", "reactions", "nodeReactions", "memberForces", "forces"];
+  const pass = hasResultField(analysis, resultKeys) || hasResultField(analysis.data, resultKeys);
   return {
     metric: "has_analysis",
     pass,
-    expected: "analysis results with displacements, reactions, or member forces",
+    expected: "analysis results with displacements, reactions, or forces",
     actual: pass ? "present" : `keys: ${Object.keys(analysis).join(", ") || "(empty)"}`,
   };
 }
