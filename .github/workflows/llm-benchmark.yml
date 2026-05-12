@@ -24,7 +24,6 @@ jobs:
       issues: write
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'push' ||
       (github.event.issue.pull_request &&
        contains(github.event.comment.body, '/test-llm-benchmark') &&
        (github.event.comment.user.login == 'guyi2000' || github.event.comment.user.login == 'qinsz01'))
@@ -130,6 +129,7 @@ jobs:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_MODEL: ${{ github.event.inputs.llm_model || vars.LLM_MODEL }}
           LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
+          LLM_JUDGE_API_KEY: ${{ secrets.LLM_JUDGE_API_KEY || secrets.LLM_API_KEY }}
           LLM_JUDGE_MODEL: ${{ vars.LLM_JUDGE_MODEL }}
           LLM_LOG_ENABLED: "true"
           LLM_LOG_DIR: ${{ github.workspace }}/.structureclaw/logs

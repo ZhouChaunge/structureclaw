@@ -45,6 +45,59 @@ function parseBenchmarkOptions(args) {
   return { scenarioId, outputPath };
 }
 
+function normalizeScenario(scenario) {
+  if (scenario.turns) {
+    return { ...scenario, _multiTurn: true };
+  }
+  return {
+    ...scenario,
+    _multiTurn: false,
+    turns: [
+      {
+        message: scenario.message,
+        assertions: scenario.expect?.assertions,
+      },
+    ],
+  };
+}
+
+function mergeTurnResults(scenario, turnResults, totalDurationMs) {
+  const allMetrics = [];
+  let allPassed = true;
+  let passed = 0;
+  let total = 0;
+
+  for (const { evaluation } of turnResults) {
+    // Keep per-turn toolCalls and duration as informational
+    const coreMetrics = evaluation.metrics.filter(
+      (m) => m.metric !== "toolCalls" && m.metric !== "duration",
+    );
+    allMetrics.push(...coreMetrics);
+    passed += coreMetrics.filter((m) => m.pass).length;
+    total += coreMetrics.length;
+    if (!evaluation.allPassed) allPassed = false;
+  }
+
+  // Add overall informational metrics
+  allMetrics.push({
+    metric: "duration",
+    pass: true,
+    expected: "(info)",
+    actual: `${(totalDurationMs / 1000).toFixed(1)}s`,
+  });
+
+  return {
+    scenarioId: scenario.id,
+    description: scenario.description || "",
+    passed,
+    total: total + 1,
+    allPassed,
+    metrics: allMetrics,
+    durationMs: totalDurationMs,
+    turnResults: turnResults.map((r) => ({ turnIndex: r.turnIndex, evaluation: r.evaluation })),
+  };
+}
+
 async function runBenchmark(rootDir, args) {
   const options = parseBenchmarkOptions(args);
   const { resolveRegressionContext } = require("../regression/shared.js");
@@ -89,7 +142,8 @@ async function runBenchmark(rootDir, args) {
 
   const results = [];
 
-  for (const scenario of scenarios) {
+  for (const rawScenario of scenarios) {
+    const scenario = normalizeScenario(rawScenario);
     const maxRetries = Math.max(0, typeof scenario.maxRetries === "number" ? scenario.maxRetries : 0);
     let attempt = 0;
     let lastEvaluation = null;
@@ -101,40 +155,69 @@ async function runBenchmark(rootDir, args) {
         process.stdout.write(`\nRunning: ${scenario.id}...\n`);
       }
 
-      const startTime = Date.now();
+      const scenarioStart = Date.now();
       let executionError = false;
-      try {
-        const state = await service.runFull({
-          message: scenario.message,
-          conversationId: `bench-${scenario.id}-${startTime}`,
-          context: { locale: scenario.locale || "zh" },
-        });
+      const turnResults = [];
+      const conversationId = `bench-${scenario.id}-${scenarioStart}-${attempt}`;
 
-        const durationMs = Date.now() - startTime;
-        lastEvaluation = await evaluateScenario(scenario, state, durationMs);
+      // Suppress noisy agent logs during execution
+      const prevLogLevel = process.env.LOG_LEVEL;
+      process.env.LOG_LEVEL = "warn";
+
+      try {
+        for (let i = 0; i < scenario.turns.length; i++) {
+          const turn = scenario.turns[i];
+          const turnStart = Date.now();
+
+          const state = await service.runFull({
+            message: turn.message,
+            conversationId,
+            context: { locale: scenario.locale || "zh" },
+          });
+
+          const turnDurationMs = Date.now() - turnStart;
+
+          if (turn.assertions && turn.assertions.length > 0) {
+            const turnScenario = { ...scenario, expect: { assertions: turn.assertions } };
+            const evaluation = await evaluateScenario(turnScenario, state, turnDurationMs);
+            turnResults.push({ turnIndex: i, evaluation });
+          }
+        }
       } catch (err) {
         executionError = true;
-        const durationMs = Date.now() - startTime;
         const message = err instanceof Error ? err.message : String(err);
         process.stdout.write(`  error: ${message}\n`);
-        lastEvaluation = {
-          scenarioId: scenario.id,
-          description: scenario.description || "",
-          passed: 0,
-          total: 1,
-          allPassed: false,
-          metrics: [{ metric: "execution", pass: false, expected: "no error", actual: message }],
-          durationMs,
-        };
+        turnResults.push({
+          turnIndex: scenario.turns.length - 1,
+          evaluation: {
+            scenarioId: scenario.id,
+            description: scenario.description || "",
+            passed: 0,
+            total: 1,
+            allPassed: false,
+            metrics: [{ metric: "execution", pass: false, expected: "no error", actual: message }],
+            durationMs: Date.now() - scenarioStart,
+          },
+        });
       }
 
-      if (lastEvaluation.allPassed) break;
-      // Don't retry on execution errors (infra/config issues are deterministic)
+      process.env.LOG_LEVEL = prevLogLevel;
+
+      const totalDurationMs = Date.now() - scenarioStart;
+
+      if (turnResults.length > 0) {
+        if (scenario._multiTurn) {
+          lastEvaluation = mergeTurnResults(scenario, turnResults, totalDurationMs);
+        } else {
+          lastEvaluation = turnResults[0].evaluation;
+        }
+      }
+
+      if (lastEvaluation && lastEvaluation.allPassed) break;
       if (executionError) break;
       attempt += 1;
     }
 
-    // Guard against null (e.g. negative maxRetries skipped the loop)
     if (!lastEvaluation) {
       lastEvaluation = {
         scenarioId: scenario.id,
@@ -147,7 +230,7 @@ async function runBenchmark(rootDir, args) {
       };
     }
 
-    printScenarioResult(scenario, lastEvaluation);
+    printScenarioResult(rawScenario, lastEvaluation);
     results.push(lastEvaluation);
   }
 

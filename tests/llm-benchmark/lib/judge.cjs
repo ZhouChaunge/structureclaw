@@ -125,8 +125,8 @@ function callLlmJudgeApi(prompt) {
     process.env.LLM_JUDGE_BASE_URL || process.env.LLM_BASE_URL || "https://api.openai.com";
   let base = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
 
-  // Build URL handling bases that already include /v1
-  const chatPath = base.endsWith("/v1") ? "/chat/completions" : "/v1/chat/completions";
+  // Build URL handling bases that already include /v1 or other versioned paths
+  const chatPath = /\/v\d+$/.test(base) ? "/chat/completions" : "/v1/chat/completions";
   const url = new URL(`${base}${chatPath}`);
   if (url.protocol !== "https:") {
     throw new Error(`Judge API must use HTTPS, got: ${url.protocol}`);

@@ -145,6 +145,25 @@ function evalSkillMatch(assertion, state) {
   };
 }
 
+function evalHasInteractionQuestions(_assertion, state) {
+  const messages = Array.isArray(state.messages) ? state.messages : [];
+  const hasQuestions = messages.some((msg) => {
+    if (msg.type !== "ai" && msg.role !== "assistant") return false;
+    if (Array.isArray(msg.tool_calls)) {
+      return msg.tool_calls.some(
+        (tc) => tc.name === "build_questions" || tc.name === "compute_missing",
+      );
+    }
+    return false;
+  });
+  return {
+    metric: "has_interaction_questions",
+    pass: hasQuestions,
+    expected: "agent asks user for missing parameters",
+    actual: hasQuestions ? "questions found" : "no questions asked",
+  };
+}
+
 async function evalNaturalLanguage(assertion, state) {
   const result = await evaluateNaturalLanguage(assertion.description, state);
   const suffix = result.reason ? ` — ${result.reason}` : "";
@@ -179,13 +198,15 @@ async function dispatchAssertion(assertion, state) {
       return evalHasReport(assertion, state);
     case "skill_match":
       return evalSkillMatch(assertion, state);
+    case "has_interaction_questions":
+      return evalHasInteractionQuestions(assertion, state);
     case "natural_language":
       return evalNaturalLanguage(assertion, state);
     default:
       return {
         metric: `unknown:${assertion.type || "undefined"}`,
         pass: false,
-        expected: "valid assertion type (structural_type, has_model, has_analysis, has_report, skill_match, natural_language)",
+        expected: "valid assertion type (structural_type, has_model, has_analysis, has_report, skill_match, has_interaction_questions, natural_language)",
         actual: `unsupported type: ${assertion.type || "(undefined)"}`,
       };
   }
