@@ -23,7 +23,8 @@ function printScenarioResult(scenario, evaluation) {
       const preview = turnMsg.length > 40 ? turnMsg.slice(0, 40) + "..." : turnMsg;
       process.stdout.write(`\n  Turn ${turnIndex + 1}: "${preview}"\n`);
       for (const m of turnEval.metrics) {
-        if (m.metric === "toolCalls" || m.metric === "duration") continue;
+        if (m.metric === "duration") continue;
+        if (m.metric === "toolCalls" && m.pass) continue;
         process.stdout.write(formatTurnMetric(m) + "\n");
       }
     }

@@ -199,9 +199,13 @@ async function runBenchmark(rootDir, args) {
             durationMs: Date.now() - scenarioStart,
           },
         });
+      } finally {
+        if (prevLogLevel === undefined) {
+          delete process.env.LOG_LEVEL;
+        } else {
+          process.env.LOG_LEVEL = prevLogLevel;
+        }
       }
-
-      process.env.LOG_LEVEL = prevLogLevel;
 
       const totalDurationMs = Date.now() - scenarioStart;
 

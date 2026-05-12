@@ -11,7 +11,9 @@
 function extractSkillTrace(messages) {
   if (!Array.isArray(messages)) return null;
 
-  for (const msg of messages) {
+  // Scan from end to find the most recent routing decision (important for multi-turn)
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
     if (!msg || typeof msg !== 'object') continue;
 
     // LangChain ToolMessage: msg.name === tool name

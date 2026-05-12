@@ -10,6 +10,11 @@
 const { extractSkillTrace } = require("./skill-trace.cjs");
 const { evaluateNaturalLanguage } = require("./judge.cjs");
 
+const ANALYSIS_RESULT_KEYS = [
+  "displacements", "nodeDisplacements", "reactions",
+  "nodeReactions", "memberForces", "forces",
+];
+
 // ---------------------------------------------------------------------------
 // v1 → v2 auto-upgrade
 // ---------------------------------------------------------------------------
@@ -98,8 +103,7 @@ function evalHasAnalysis(_assertion, state) {
       actual: "(none)",
     };
   }
-  const resultKeys = ["displacements", "nodeDisplacements", "reactions", "nodeReactions", "memberForces", "forces"];
-  const pass = hasResultField(analysis, resultKeys) || hasResultField(analysis.data, resultKeys);
+  const pass = hasResultField(analysis, ANALYSIS_RESULT_KEYS) || hasResultField(analysis.data, ANALYSIS_RESULT_KEYS);
   return {
     metric: "has_analysis",
     pass,
@@ -151,7 +155,7 @@ function evalHasInteractionQuestions(_assertion, state) {
     if (msg.type !== "ai" && msg.role !== "assistant") return false;
     if (Array.isArray(msg.tool_calls)) {
       return msg.tool_calls.some(
-        (tc) => tc.name === "build_questions" || tc.name === "compute_missing",
+        (tc) => tc.name === "ask_user_clarification",
       );
     }
     return false;
