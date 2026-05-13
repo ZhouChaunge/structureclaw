@@ -66,7 +66,7 @@ export async function fileRoutes(fastify: FastifyInstance) {
     }
 
     const resolved = path.resolve(rawPath);
-    if (!resolved.startsWith(RUNTIME_DIR)) {
+    if (resolved !== RUNTIME_DIR && !resolved.startsWith(RUNTIME_DIR + path.sep)) {
       return reply.status(403).send({ error: 'Access denied: path outside runtime directory' });
     }
 
