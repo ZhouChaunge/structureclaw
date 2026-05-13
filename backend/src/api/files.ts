@@ -135,31 +135,40 @@ export async function fileRoutes(fastify: FastifyInstance) {
       const storedPath = path.join(conversationUploadDir, storedName);
       const relPath = path.join('.uploads', conversationId, storedName).replace(/\\/g, '/');
 
-      const chunks: Buffer[] = [];
+      const hash = crypto.createHash('sha256');
       let totalSize = 0;
       let sizeExceeded = false;
+      const writeStream = fs.createWriteStream(storedPath);
 
       try {
-        for await (const chunk of part.file) {
-          totalSize += (chunk as Buffer).length;
-          if (totalSize > UPLOAD_MAX_BYTES) {
-            sizeExceeded = true;
-            // Drain remaining
-            for await (const _rest of part.file) { /* drain */ }
-            break;
+        try {
+          for await (const chunk of part.file) {
+            const buf = chunk as Buffer;
+            totalSize += buf.length;
+            if (totalSize > UPLOAD_MAX_BYTES) {
+              sizeExceeded = true;
+              break;
+            }
+            hash.update(buf);
+            if (!writeStream.write(buf)) {
+              await new Promise<void>((resolve) => writeStream.once('drain', () => resolve()));
+            }
           }
-          chunks.push(chunk as Buffer);
+        } finally {
+          await new Promise<void>((resolve, reject) => {
+            writeStream.end((err?: Error | null) => (err ? reject(err) : resolve()));
+          });
         }
 
         if (sizeExceeded) {
+          // Drain remaining stream bytes to avoid hanging the connection.
+          try { for await (const _rest of part.file) { /* drain */ } } catch { /* ignore */ }
+          await fsp.unlink(storedPath).catch(() => {});
           errors.push({ name: originalName, error: 'File exceeds 50 MB limit' });
           continue;
         }
 
-        const buffer = Buffer.concat(chunks);
-        const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
-
-        await fsp.writeFile(storedPath, buffer);
+        const sha256 = hash.digest('hex');
 
         uploadedFiles.push({
           fileId,
@@ -173,6 +182,7 @@ export async function fileRoutes(fastify: FastifyInstance) {
           uploadedAt: new Date().toISOString(),
         });
       } catch (err) {
+        await fsp.unlink(storedPath).catch(() => {});
         errors.push({ name: originalName, error: String(err) });
       }
     }
