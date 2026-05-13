@@ -20,7 +20,7 @@ export const userToolYamlSchema = z.object({
   defaultEnabled: z.boolean().optional().default(true),
 });
 
-export type UserToolYaml = z.infer<typeof userToolYamlSchema>;
+type UserToolYaml = z.infer<typeof userToolYamlSchema>;
 
 export interface UserToolLoadFailure {
   toolDir: string;

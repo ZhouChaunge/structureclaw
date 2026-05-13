@@ -42,7 +42,7 @@ const IMAGE_MIME: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 /** Returns true only when candidatePath is exactly root or a strict descendant. */
-export function isPathWithinRoot(candidatePath: string, root: string): boolean {
+function isPathWithinRoot(candidatePath: string, root: string): boolean {
   const c = path.normalize(candidatePath);
   const r = path.normalize(root);
   return c === r || c.startsWith(r + path.sep);
