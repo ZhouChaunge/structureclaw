@@ -27,6 +27,7 @@ describe('tool registry: AGENT_TOOL_DEFINITIONS structure', () => {
     const { AGENT_TOOL_DEFINITIONS } = await import('../../../dist/agent-langgraph/tool-registry.js');
 
     const registeredIds = AGENT_TOOL_DEFINITIONS.map((def) => def.id);
+    expect(registeredIds).toHaveLength(EXPECTED_TOOL_IDS.length);
     for (const expectedId of EXPECTED_TOOL_IDS) {
       expect(registeredIds).toContain(expectedId);
     }

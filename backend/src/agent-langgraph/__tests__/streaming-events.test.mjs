@@ -120,6 +120,99 @@ describe('streaming: step_upsert events from "updates" mode', () => {
   });
 });
 
+describe('streaming: artifact_payload_sync from tools output', () => {
+  test('emits artifact_payload_sync when nodeState contains model', async () => {
+    const { langGraphEventToChunks } = await import('../../../dist/agent-langgraph/streaming.js');
+
+    const toolMsg = new ToolMessage({
+      content: JSON.stringify({ success: true }),
+      tool_call_id: 'call-build',
+      name: 'build_model',
+    });
+    const nodeState = { messages: [toolMsg], model: { nodes: {}, elements: {} } };
+    const chunks = langGraphEventToChunks({ tools: nodeState }, 'updates');
+
+    const artifactChunk = chunks.find((c) => c.type === 'artifact_payload_sync' && c.artifact === 'model');
+    expect(artifactChunk).toBeDefined();
+    expect(artifactChunk.model).toEqual({ nodes: {}, elements: {} });
+  });
+
+  test('emits artifact_payload_sync when nodeState contains analysisResult via Command', async () => {
+    const { langGraphEventToChunks } = await import('../../../dist/agent-langgraph/streaming.js');
+    const { Command } = await import('@langchain/langgraph');
+
+    const toolMsg = new ToolMessage({
+      content: JSON.stringify({ success: true }),
+      tool_call_id: 'call-analysis',
+      name: 'run_analysis',
+    });
+    const cmd = new Command({
+      update: { messages: [toolMsg], analysisResult: { displacements: [] } },
+    });
+    const chunks = langGraphEventToChunks({ tools: [cmd] }, 'updates');
+
+    const artifactChunk = chunks.find((c) => c.type === 'artifact_payload_sync' && c.artifact === 'analysis');
+    expect(artifactChunk).toBeDefined();
+    expect(artifactChunk.latestResult.analysis).toEqual({ displacements: [] });
+  });
+
+  test('does not emit artifact_payload_sync when tool output is not success JSON', async () => {
+    const { langGraphEventToChunks } = await import('../../../dist/agent-langgraph/streaming.js');
+
+    const toolMsg = new ToolMessage({
+      content: 'not-json',
+      tool_call_id: 'call-1',
+      name: 'build_model',
+    });
+    const nodeState = { messages: [toolMsg], model: { nodes: {} } };
+    const chunks = langGraphEventToChunks({ tools: nodeState }, 'updates');
+
+    const artifactChunk = chunks.find((c) => c.type === 'artifact_payload_sync');
+    expect(artifactChunk).toBeUndefined();
+  });
+});
+
+describe('streaming: step_upsert from Command-array tools output', () => {
+  test('extracts ToolMessages from mixed Command and plain-object array', async () => {
+    const { langGraphEventToChunks } = await import('../../../dist/agent-langgraph/streaming.js');
+    const { Command } = await import('@langchain/langgraph');
+
+    const toolMsg = new ToolMessage({
+      content: JSON.stringify({ success: true }),
+      tool_call_id: 'call-build',
+      name: 'build_model',
+    });
+    const cmd = new Command({ update: { messages: [toolMsg] } });
+    const chunks = langGraphEventToChunks({ tools: [cmd] }, 'updates');
+
+    const stepChunk = chunks.find((c) => c.type === 'step_upsert');
+    expect(stepChunk).toBeDefined();
+    expect(stepChunk.step.tool).toBe('build_model');
+    expect(stepChunk.step.status).toBe('done');
+  });
+
+  test('extracts ToolMessages from multiple Commands in one array', async () => {
+    const { langGraphEventToChunks } = await import('../../../dist/agent-langgraph/streaming.js');
+    const { Command } = await import('@langchain/langgraph');
+
+    const cmd1 = new Command({
+      update: { messages: [new ToolMessage({
+        content: '{}', tool_call_id: 'c1', name: 'run_analysis',
+      })] },
+    });
+    const cmd2 = new Command({
+      update: { messages: [new ToolMessage({
+        content: '{}', tool_call_id: 'c2', name: 'generate_report',
+      })] },
+    });
+    const chunks = langGraphEventToChunks({ tools: [cmd1, cmd2] }, 'updates');
+
+    const stepChunks = chunks.filter((c) => c.type === 'step_upsert');
+    expect(stepChunks).toHaveLength(2);
+    expect(stepChunks.map((c) => c.step.tool)).toEqual(['run_analysis', 'generate_report']);
+  });
+});
+
 describe('streaming: interrupt events from "updates" mode', () => {
   test('emits interaction_update for __interrupt__ with question', async () => {
     const { langGraphEventToChunks } = await import('../../../dist/agent-langgraph/streaming.js');
@@ -178,17 +271,17 @@ describe('streaming: custom event passthrough', () => {
 });
 
 describe('streaming: step_upsert for at least 5 tool types', () => {
-  const toolNames = [
-    'detect_structure_type',
-    'extract_draft_params',
-    'build_model',
-    'validate_model',
-    'run_analysis',
-    'run_code_check',
-    'generate_report',
-  ];
+  const toolPhaseMap = {
+    detect_structure_type: 'understanding',
+    extract_draft_params: 'understanding',
+    build_model: 'modeling',
+    validate_model: 'modeling',
+    run_analysis: 'analysis',
+    run_code_check: 'analysis',
+    generate_report: 'report',
+  };
 
-  for (const toolName of toolNames) {
+  for (const [toolName, expectedPhase] of Object.entries(toolPhaseMap)) {
     test(`emits step_upsert for tool: ${toolName}`, async () => {
       const { langGraphEventToChunks } = await import('../../../dist/agent-langgraph/streaming.js');
 
@@ -203,7 +296,7 @@ describe('streaming: step_upsert for at least 5 tool types', () => {
       expect(stepChunk).toBeDefined();
       expect(stepChunk.step.tool).toBe(toolName);
       expect(stepChunk.step.status).toBe('done');
-      expect(stepChunk.step.phase).toBeDefined();
+      expect(stepChunk.step.phase).toBe(expectedPhase);
     });
   }
 });

@@ -66,6 +66,7 @@ describe('AgentStateAnnotation: schema shape', () => {
       'messages', 'draftState', 'artifacts', 'selectedSkillIds',
       'locale', 'workspaceRoot', 'policy', 'bindings',
       'lastUserMessage', 'structuralTypeKey',
+      'model', 'analysisResult', 'codeCheckResult', 'report',
     ];
     for (const key of expectedKeys) {
       expect(AgentStateAnnotation.spec).toHaveProperty(key);
