@@ -41,6 +41,14 @@ const StructuralVisualizationModal = dynamic(
 type AnalysisType = 'static' | 'dynamic' | 'seismic' | 'nonlinear'
 type PanelTab = 'analysis' | 'report' | 'context'
 
+type MessageAttachment = {
+  fileId: string
+  originalName: string
+  relPath: string
+  size?: number
+  mimeType?: string
+}
+
 type Message = {
   id: string
   role: 'user' | 'assistant' | 'tool'
@@ -51,6 +59,7 @@ type Message = {
   presentation?: AssistantPresentation
   toolStep?: TimelineStepItem
   toolCalls?: Array<{ id?: string; name: string; args?: Record<string, unknown> }>
+  attachments?: MessageAttachment[]
 }
 
 type AgentToolCall = {
@@ -600,6 +609,29 @@ function normalizeToolCalls(value: unknown): AgentToolCall[] {
       error: typeof call?.error === 'string' ? call.error : undefined,
     }
   })
+}
+
+function parsePersistedAttachments(metadata: unknown): MessageAttachment[] | undefined {
+  const metadataRecord = toObjectRecord(metadata)
+  const raw = metadataRecord?.attachments
+  if (!Array.isArray(raw) || raw.length === 0) return undefined
+  const result: MessageAttachment[] = []
+  for (const item of raw) {
+    const rec = toObjectRecord(item)
+    if (!rec) continue
+    const fileId = typeof rec.fileId === 'string' ? rec.fileId : ''
+    const originalName = typeof rec.originalName === 'string' ? rec.originalName : ''
+    const relPath = typeof rec.relPath === 'string' ? rec.relPath : ''
+    if (!fileId || !originalName || !relPath) continue
+    result.push({
+      fileId,
+      originalName,
+      relPath,
+      size: typeof rec.size === 'number' ? rec.size : undefined,
+      mimeType: typeof rec.mimeType === 'string' ? rec.mimeType : undefined,
+    })
+  }
+  return result.length > 0 ? result : undefined
 }
 
 function parsePersistedDebugDetails(metadata: unknown): MessageDebugDetails | undefined {
@@ -2794,6 +2826,7 @@ export function AIConsole() {
               timestamp: message.createdAt,
               debugDetails: parsePersistedDebugDetails(message.metadata),
               presentation: parsePersistedPresentation(message.metadata),
+              attachments: parsePersistedAttachments(message.metadata),
             }]
           })
         : []
@@ -3062,6 +3095,15 @@ export function AIConsole() {
       content: trimmedInput,
       status: 'done',
       timestamp: new Date().toISOString(),
+      attachments: attachedFiles.length > 0
+        ? attachedFiles.map((f) => ({
+            fileId: f.fileId,
+            originalName: f.originalName,
+            relPath: f.relPath,
+            size: f.size,
+            mimeType: f.mimeType,
+          }))
+        : undefined,
     }
 
     const assistantMessageId = createId('assistant')
@@ -3672,7 +3714,15 @@ export function AIConsole() {
   // ── Composer input (shared between idle and active layouts) ──
   async function handleFileSelect(files: FileList | null) {
     if (!files || files.length === 0) return
-    const convId = conversationId || 'temp'
+    let convId = conversationId
+    if (!convId) {
+      try {
+        convId = await ensureConversation(t('fileUploadConversationSeed'))
+      } catch {
+        setErrorMessage(t('fileUploadError'))
+        return
+      }
+    }
     setUploadingCount((c) => c + files.length)
     for (const file of Array.from(files)) {
       try {
@@ -3744,17 +3794,6 @@ export function AIConsole() {
           <Badge className="border-border/70 bg-background/70 text-muted-foreground dark:border-white/10 dark:bg-white/5" variant="outline">
             {t('conversationIdShort')} {conversationId ? conversationId.slice(0, 8) : t('notCreated')}
           </Badge>
-          <button
-            type="button"
-            aria-label={t('attachFile')}
-            title={t('attachFile')}
-            className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-[11px] text-muted-foreground transition hover:border-cyan-300/30 hover:text-foreground disabled:opacity-50 dark:border-white/10 dark:bg-white/5"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingCount > 0}
-          >
-            {uploadingCount > 0 ? <Loader2 className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />}
-            {uploadingCount > 0 ? t('uploadingFile') : t('attachFile')}
-          </button>
           {allEngines.length > 0 && (
             <div className="flex items-center gap-1.5">
               {allEngines.map((engine) => {
@@ -3819,15 +3858,29 @@ export function AIConsole() {
               {t('stopStreaming')}
             </Button>
           ) : (
-            <Button
-              type="button"
-              className="rounded-full bg-cyan-300 px-5 text-slate-950 hover:bg-cyan-200"
-              onClick={() => handleSubmit()}
-              disabled={!input.trim() || submittingRef.current}
-            >
-              <ArrowUp className="h-4 w-4" />
-              {t('sendMessage')}
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label={t('attachFile')}
+                title={uploadingCount > 0 ? t('uploadingFile') : t('attachFile')}
+                className="rounded-full"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingCount > 0 || submittingRef.current}
+              >
+                {uploadingCount > 0 ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+              </Button>
+              <Button
+                type="button"
+                className="rounded-full bg-cyan-300 px-5 text-slate-950 hover:bg-cyan-200"
+                onClick={() => handleSubmit()}
+                disabled={!input.trim() || submittingRef.current}
+              >
+                <ArrowUp className="h-4 w-4" />
+                {t('sendMessage')}
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -4292,6 +4345,25 @@ export function AIConsole() {
                             ? <MarkdownBody compact content={message.content} />
                             : <div className="whitespace-pre-wrap text-sm leading-7">{message.content}</div>
                         ) : null}
+                        {message.role === 'user' && message.attachments && message.attachments.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {message.attachments.map((att) => (
+                              <span
+                                key={att.fileId}
+                                className="inline-flex items-center gap-1 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2 py-0.5 text-[11px] text-foreground/80 dark:text-white/80"
+                                title={att.relPath}
+                              >
+                                <FileText className="h-3 w-3 shrink-0" />
+                                <span className="max-w-[180px] truncate">{att.originalName}</span>
+                                {typeof att.size === 'number' && (
+                                  <span className="text-muted-foreground">
+                                    {att.size < 1024 ? `${att.size}B` : att.size < 1024 * 1024 ? `${Math.round(att.size / 1024)}KB` : `${(att.size / 1024 / 1024).toFixed(1)}MB`}
+                                  </span>
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         {message.status === 'streaming' && (
                           <span className="inline-flex items-center gap-1.5 mt-1" role="status">
                             <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-500 dark:bg-cyan-400" />
