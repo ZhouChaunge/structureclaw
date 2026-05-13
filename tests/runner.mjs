@@ -11,8 +11,6 @@ const { runBackendRegression } = require("./regression/backend-regression.js");
 const { runAnalysisRegression } = require("./regression/analysis-regression.js");
 const { runNativeInstallSmoke } = require("./smoke/install-smoke.cjs");
 
-const { runLlmIntegrationTests } = require("./llm-integration/runner.cjs");
-const { summarizeArtifacts, printSummary } = require("./llm-integration/summarize.cjs");
 const { runBenchmark } = require("./llm-benchmark/runner.cjs");
 
 function parseCliOptions(args) {
@@ -63,37 +61,33 @@ function formatCheckList() {
 }
 
 function printHelp() {
-  process.stdout.write(`StructureClaw regression and smoke runner
+  process.stdout.write(`StructureClaw test runner
 
 Usage:
   node tests/runner.mjs <command> [options]
 
 Commands:
-  validate <name>       Run a named validation
-  validate --list       List validation names
-  check <name>          Run a grouped check
-  check --list          List check names
-  backend-regression    Full backend regression suite
-  analysis-regression   Full analysis regression suite
-  llm-integration       LLM integration tests (requires LLM_API_KEY)
-                        supports: node tests/runner.mjs llm-integration [category]
-                        default: routing (only routing tests pass under LangGraph)
-                        categories: routing | extraction | pipeline | clarification
-                          [--family <family>]  (alias: --skill)
-                          [--variant <specific|generic|auto>]
-                          [--scenario <scenarioId>]
-                          [--output <artifact.json>]
-  llm-benchmark         LangGraph agent benchmark (requires LLM_API_KEY)
-                        runs full ReAct agent, evaluates end-to-end quality
+  validate <name>       Run one named contract/schema validation
+  validate --list       List named validations
+  check <name>          Run a grouped validation alias
+  check --list          List grouped validation aliases
+  backend-regression    Backend regression bundle: build, lint, Jest, and validations (includes skill routing)
+  analysis-regression   Deterministic engineering analysis regression
+  llm-benchmark         LangGraph agent benchmark with v2 assertions (requires LLM_API_KEY)
+                        runs full ReAct agent end-to-end with skill-hit tracing and LLM-as-Judge
+                        assertion types: structural_type | has_model | has_analysis | has_report |
+                                         skill_match | natural_language
                           [--scenario <scenarioId>]
                           [--output <results.json>]
-  llm-summary <path>   Summarize LLM test artifacts by family/variant
   smoke-native          CI-style native install smoke (npm ci + build)
 
 Replaces former sclaw commands:
   sclaw validate ...    -> node tests/runner.mjs validate ...
   sclaw check ...       -> node tests/runner.mjs check ...
   sclaw backend-regression / analysis-regression / test-smoke-* -> see above
+
+Test taxonomy:
+  docs/testing.md defines category ownership and CI workflow boundaries.
 `);
 }
 
@@ -147,31 +141,9 @@ async function main() {
     case "smoke-native":
       await runNativeInstallSmoke(rootDir);
       return;
-    case "llm-integration":
-      await runLlmIntegrationTests(rootDir, rawArgs);
-      return;
     case "llm-benchmark":
       await runBenchmark(rootDir, rawArgs);
       return;
-    case "llm-summary": {
-      const artifactPath = rawArgs[0];
-      if (!artifactPath) {
-        throw new Error("Usage: node tests/runner.mjs llm-summary <artifact.json>");
-      }
-      const fs = require("node:fs");
-      if (!fs.existsSync(artifactPath)) {
-        throw new Error(`Artifact file not found: ${artifactPath}`);
-      }
-      const parsed = JSON.parse(fs.readFileSync(artifactPath, "utf-8"));
-      if (!Array.isArray(parsed)) {
-        throw new Error(`Expected a JSON array in ${artifactPath}, got ${typeof parsed}`);
-      }
-      const records = parsed;
-      const summary = summarizeArtifacts(records);
-      printSummary(summary);
-      process.stdout.write("\n");
-      return;
-    }
     default:
       throw new Error(`Unknown command: ${cmd}`);
   }

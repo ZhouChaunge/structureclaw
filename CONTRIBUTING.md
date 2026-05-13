@@ -137,6 +137,8 @@ git push origin --delete my-feature
 
 Run the checks that match your change.
 
+For the full test taxonomy, runner ownership, and CI workflow boundaries, see [docs/testing.md](docs/testing.md).
+
 Backend-focused:
 
 ```bash
@@ -151,6 +153,7 @@ Frontend-focused:
 npm run build --prefix frontend
 npm run type-check --prefix frontend
 npm run test:run --prefix frontend
+npm run test:run:integration --prefix frontend  # app routes, providers, console shell, accessibility
 ```
 
 Analysis runtime and cross-service validation:
@@ -172,7 +175,7 @@ node tests/runner.mjs validate validate-converter-api-contract
 Expectation by change type:
 
 - Backend and contract work: cover success, failure, and missing-input behavior.
-- Frontend work: run targeted tests plus `type-check`; run `build` for routing, layout, or provider changes.
+- Frontend work: run targeted tests plus `type-check`; run `test:run:integration` for app route, provider, console shell, or accessibility changes; run `build` for routing, layout, or provider changes.
 - Analysis runtime work: keep regression fixtures stable and justify expected-output updates clearly.
 - Docs-only changes: no code tests are required, but commands and file paths in the docs should be checked for accuracy.
 
