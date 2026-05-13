@@ -83,7 +83,7 @@ function getRuntimeLlmSettings(): StoredLlmSettings | null {
 export function getEffectiveLlmSettings(): EffectiveLlmSettings {
   const runtimeSettings = getRuntimeLlmSettings();
   return {
-    llmApiKey: runtimeSettings?.apiKey ?? '',
+    llmApiKey: runtimeSettings?.apiKey || process.env.LLM_API_KEY || '',
     llmModel: runtimeSettings?.model || process.env.LLM_MODEL || LLM_DEFAULTS.model,
     llmBaseUrl: runtimeSettings?.baseUrl || process.env.LLM_BASE_URL || LLM_DEFAULTS.baseUrl,
     llmTimeoutMs: runtimeSettings?.timeoutMs ?? config.llmTimeoutMs,
