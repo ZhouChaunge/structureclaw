@@ -80,8 +80,7 @@ describe('AgentStateAnnotation: schema shape', () => {
     for (const [key, channel] of Object.entries(AgentStateAnnotation.spec)) {
       expect(channel).not.toBeNull();
       expect(typeof channel).toBe('object');
-      // Each channel should have a lc_graph_name or be a recognizable LangGraph object
-      expect(channel.constructor).toBeDefined();
+      expect(channel.lc_graph_name).toBeDefined();
     }
   });
 });

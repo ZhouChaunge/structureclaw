@@ -18,6 +18,7 @@ const EXPECTED_TOOL_IDS = [
   'replace_in_file',
   'move_path',
   'delete_path',
+  'analyze_file',
   'shell',
 ];
 

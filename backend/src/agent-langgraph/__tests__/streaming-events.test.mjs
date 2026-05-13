@@ -203,6 +203,7 @@ describe('streaming: step_upsert for at least 5 tool types', () => {
       expect(stepChunk).toBeDefined();
       expect(stepChunk.step.tool).toBe(toolName);
       expect(stepChunk.step.status).toBe('done');
+      expect(stepChunk.step.phase).toBeDefined();
     });
   }
 });
