@@ -364,15 +364,15 @@ describe('backend runtime llm settings', () => {
     try {
       const { llmRuntime } = await getModules();
       expect(llmRuntime.getEffectiveLlmSettings()).toMatchObject({
-        llmApiKey: '',
+        llmApiKey: 'env-secret',
         llmModel: 'env-model',
         llmBaseUrl: 'https://env-fallback.example.com/v1',
       });
       expect(llmRuntime.getPublicLlmSettings()).toMatchObject({
         baseUrl: 'https://env-fallback.example.com/v1',
         model: 'env-model',
-        hasApiKey: false,
-        apiKeySource: 'unset',
+        hasApiKey: true,
+        apiKeySource: 'runtime',
         hasOverrides: false,
         baseUrlSource: 'default',
         modelSource: 'default',
