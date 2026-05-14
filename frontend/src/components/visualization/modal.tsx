@@ -457,5 +457,3 @@ export function StructuralVisualizationModal({
     </VisualizationModalShell>
   )
 }
-
-export default StructuralVisualizationModal

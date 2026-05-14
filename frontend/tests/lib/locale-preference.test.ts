@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
-  LOCALE_COOKIE_NAME,
+  LOCALE_STORAGE_KEY,
   readLocaleCookieFromDocument,
   normalizeLocale,
 } from '@/lib/locale-preference'
@@ -26,7 +26,7 @@ describe('locale-preference', () => {
   })
 
   it('readLocaleCookieFromDocument parses document.cookie', () => {
-    document.cookie = `${LOCALE_COOKIE_NAME}=zh; path=/`
+    document.cookie = `${LOCALE_STORAGE_KEY}=zh; path=/`
     expect(readLocaleCookieFromDocument()).toBe('zh')
   })
 

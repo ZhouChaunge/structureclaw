@@ -2,7 +2,7 @@ import type { AppLocale } from '@/lib/stores/slices/preferences'
 
 /** Same key for localStorage and document cookie so preferences stay aligned. */
 export const LOCALE_STORAGE_KEY = 'structureclaw.locale'
-export const LOCALE_COOKIE_NAME = LOCALE_STORAGE_KEY
+const LOCALE_COOKIE_NAME = LOCALE_STORAGE_KEY
 
 export function normalizeLocale(value: unknown): AppLocale | null {
   if (value === 'en' || value === 'zh') {

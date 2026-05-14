@@ -595,5 +595,3 @@ export class AgentSkillHubService {
     }
   }
 }
-
-export default AgentSkillHubService;

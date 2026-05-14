@@ -124,11 +124,11 @@ const PHASE_ORDER: PresentationPhase[] = ['understanding', 'modeling', 'validati
 
 // --- Public helpers ---
 
-export function buildPhaseId(phase: PresentationPhase): string {
+function buildPhaseId(phase: PresentationPhase): string {
   return `phase:${phase}`;
 }
 
-export function phaseFromPhaseId(phaseId: string): PresentationPhase {
+function phaseFromPhaseId(phaseId: string): PresentationPhase {
   for (const phase of PHASE_ORDER) {
     if (phaseId.includes(phase)) {
       return phase;
@@ -476,7 +476,7 @@ function phaseForToolCall(tool: string): PresentationPhase {
   return 'modeling';
 }
 
-export function skillIdForToolCall(tool: string, routing?: PresentationResultLike['routing']): string | undefined {
+function skillIdForToolCall(tool: string, routing?: PresentationResultLike['routing']): string | undefined {
   if (tool === 'build_model' || tool === 'extract_draft_params' || tool === 'detect_structure_type') {
     return routing?.structuralSkillId;
   }
@@ -584,7 +584,7 @@ function uniqueStrings(values: string[] | undefined): string[] {
   return Array.from(new Set(values.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)));
 }
 
-export function phaseTitle(phase: PresentationPhase, locale: 'en' | 'zh' = 'en'): string {
+function phaseTitle(phase: PresentationPhase, locale: 'en' | 'zh' = 'en'): string {
   const zh: Record<PresentationPhase, string> = {
     understanding: '澄清阶段',
     modeling: '建模阶段',
@@ -600,34 +600,6 @@ export function phaseTitle(phase: PresentationPhase, locale: 'en' | 'zh' = 'en')
     report: 'Report',
   };
   return locale === 'zh' ? zh[phase] : en[phase];
-}
-
-export function toolTitle(tool: string, status: 'running' | 'done' | 'error', locale: 'en' | 'zh' = 'en'): string {
-  if (status === 'error') return toolErrorTitle(tool, locale);
-  if (status === 'running') return toolStartTitle(tool, locale);
-  return toolDoneTitle(tool, locale);
-}
-
-function toolStartTitle(tool: string, locale: 'en' | 'zh'): string {
-  if (tool === 'build_model') {
-    return locale === 'zh' ? '生成结构模型' : 'Generating structural model';
-  }
-  if (tool === 'extract_draft_params') {
-    return locale === 'zh' ? '提取设计参数' : 'Extracting design parameters';
-  }
-  if (tool === 'detect_structure_type') {
-    return locale === 'zh' ? '识别结构类型' : 'Detecting structure type';
-  }
-  if (tool === 'validate_model') {
-    return locale === 'zh' ? '校验模型' : 'Validating model';
-  }
-  if (tool === 'run_analysis' || tool === 'run_code_check') {
-    return locale === 'zh' ? '执行分析' : 'Running analysis';
-  }
-  if (tool === 'generate_report') {
-    return locale === 'zh' ? '生成报告' : 'Generating report';
-  }
-  return locale === 'zh' ? `执行 ${tool}` : `Running ${tool}`;
 }
 
 function toolDoneTitle(tool: string, locale: 'en' | 'zh'): string {

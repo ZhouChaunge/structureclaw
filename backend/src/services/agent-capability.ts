@@ -513,5 +513,3 @@ export class AgentCapabilityService {
     };
   }
 }
-
-export default AgentCapabilityService;

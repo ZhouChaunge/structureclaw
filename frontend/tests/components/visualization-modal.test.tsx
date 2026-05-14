@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { StructuralVisualizationModal } from '@/components/visualization/modal'
 import { messages } from '@/lib/i18n'
-import type { VisualizationSnapshot } from '@/components/visualization'
+import type { VisualizationSnapshot } from '@/components/visualization/types'
 
 const t = (key: keyof typeof messages.en) => messages.en[key]
 
