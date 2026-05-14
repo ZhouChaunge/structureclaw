@@ -24,7 +24,7 @@ export interface SectionProfile {
   defaultMemberRole: 'beam' | 'column' | 'girder' | 'custom';
 }
 
-export interface SectionPropertySummary {
+interface SectionPropertySummary {
   areaMM2?: number;
   ixMM4?: number;
   iyMM4?: number;

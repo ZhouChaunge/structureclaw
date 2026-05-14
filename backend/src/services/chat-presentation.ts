@@ -1,6 +1,6 @@
 export type PresentationPhase = 'understanding' | 'modeling' | 'validation' | 'analysis' | 'report';
-export type PresentationPhaseStatus = 'pending' | 'running' | 'done' | 'error';
-export type PresentationStatus = 'streaming' | 'done' | 'error' | 'aborted';
+type PresentationPhaseStatus = 'pending' | 'running' | 'done' | 'error';
+type PresentationStatus = 'streaming' | 'done' | 'error' | 'aborted';
 type ArtifactName = 'model' | 'analysis' | 'report';
 
 // --- TimelineStepItem: one step = one tool execution ---
@@ -71,7 +71,7 @@ export type PresentationEvent =
 
 // --- Result types (for rebuild from AgentResult) ---
 
-export interface PresentationToolCallLike {
+interface PresentationToolCallLike {
   tool: string;
   status: 'success' | 'error';
   startedAt: string;

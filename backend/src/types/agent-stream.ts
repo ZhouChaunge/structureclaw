@@ -16,7 +16,7 @@ import type {
 // Presentation chunks (emitted by the agent streaming layer)
 // ---------------------------------------------------------------------------
 
-export type PublicPresentationChunk =
+type PublicPresentationChunk =
   | { type: 'presentation_init'; presentation: AssistantPresentation }
   | { type: 'phase_upsert'; phase: TimelinePhaseGroup }
   | { type: 'step_upsert'; phaseId: string; step: TimelineStepItem }
@@ -44,5 +44,3 @@ export type AgentStreamChunk =
   | { type: 'done' }
   | { type: 'error'; error?: string }
   | PublicPresentationChunk;
-
-export type StepEventCallback = (chunk: AgentStreamChunk) => void;

@@ -1,7 +1,7 @@
 import type { ExecutionRequestOptions } from '../agent-skills/analysis/types.js';
 import { PythonWorkerRunner, resolveWorkerPath } from '../utils/python-worker-runner.js';
 
-export type StructureProtocolAction =
+type StructureProtocolAction =
   | 'structure_model_schema'
   | 'converter_schema'
   | 'validate'

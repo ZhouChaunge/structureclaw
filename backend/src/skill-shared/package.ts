@@ -6,7 +6,7 @@ import type {
 } from '../agent-runtime/types.js';
 import type { SkillProviderSource } from './provider.js';
 
-export interface SkillPackageEntrypoints {
+interface SkillPackageEntrypoints {
   [key: string]: string | undefined;
 }
 

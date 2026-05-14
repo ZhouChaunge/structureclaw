@@ -52,9 +52,9 @@ export function evaluateSkillCompatibility(
   };
 }
 
-export type SkillDependencyRejectReason = 'unmet_requires' | 'conflict_detected';
+type SkillDependencyRejectReason = 'unmet_requires' | 'conflict_detected';
 
-export interface SkillDependencyRejection {
+interface SkillDependencyRejection {
   providerId: string;
   reason: SkillDependencyRejectReason;
   detail: string;

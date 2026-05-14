@@ -5,13 +5,3 @@ export {
   LOCAL_GET_ACTION_BY_PATH,
   LOCAL_POST_ACTION_BY_PATH,
 } from './registry.js';
-export type {
-  AnalysisEngineDefinition,
-  AnalysisExecutionAction,
-  AnalysisExecutionInput,
-  AnalysisRuntimeAdapterKey,
-  AnalysisSkillManifest,
-  AnalysisSoftware,
-  BuiltInAnalysisEngineId,
-  LocalAnalysisEngineClient,
-} from './types.js';

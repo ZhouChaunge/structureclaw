@@ -9,7 +9,7 @@ import { config } from '../config/index.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export interface PythonWorkerFailure {
+interface PythonWorkerFailure {
   ok: false;
   errorCode: string;
   message: string;
@@ -17,7 +17,7 @@ export interface PythonWorkerFailure {
   detail?: unknown;
 }
 
-export interface PythonWorkerSuccess<T = unknown> {
+interface PythonWorkerSuccess<T = unknown> {
   ok: true;
   data: T;
 }

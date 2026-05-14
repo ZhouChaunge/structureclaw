@@ -35,7 +35,6 @@ export type {
   DraftLoadPosition,
   DraftLoadType,
   DraftParameterExtractionResult,
-  DraftResult,
   DraftState,
   DraftSupportType,
   FrameBaseSupportType,
