@@ -69,7 +69,7 @@ export function containsAny(text: string, keywords: string[]): boolean {
   return keywords.some((keyword) => normalizedText.includes(normalizeSectionText(keyword)));
 }
 
-export function extractNumberAfterAlias(text: string, aliases: string[]): number | undefined {
+function extractNumberAfterAlias(text: string, aliases: string[]): number | undefined {
   for (const alias of aliases) {
     const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const patterns = [
@@ -114,7 +114,7 @@ export function parsePositiveNumber(value: unknown): number | undefined {
   return undefined;
 }
 
-export function parseFiniteNumber(value: unknown): number | undefined {
+function parseFiniteNumber(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }
@@ -271,7 +271,7 @@ function computePolygonProperties(points: SectionPoint[]): SectionPropertySummar
   };
 }
 
-export function calculateProfileProperties(
+function calculateProfileProperties(
   shapeId: string,
   geometry: Record<string, unknown>,
   outlinePoints?: SectionPoint[],

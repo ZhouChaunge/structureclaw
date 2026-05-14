@@ -3,8 +3,8 @@
 import type { MessageKey } from '@/lib/i18n'
 import { MarkdownBody } from './markdown-body'
 
-export type PresentationPhase = 'understanding' | 'modeling' | 'validation' | 'analysis' | 'report'
-export type PresentationPhaseStatus = 'pending' | 'running' | 'done' | 'error'
+type PresentationPhase = 'understanding' | 'modeling' | 'validation' | 'analysis' | 'report'
+type PresentationPhaseStatus = 'pending' | 'running' | 'done' | 'error'
 
 const PHASE_ORDER: PresentationPhase[] = ['understanding', 'modeling', 'validation', 'analysis', 'report']
 type ArtifactName = 'model' | 'analysis' | 'report'

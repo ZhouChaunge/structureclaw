@@ -40,7 +40,7 @@ export type SkillMetadataLike = {
   aliases?: unknown
 }
 
-export type CapabilityMatrixSkillLike = {
+type CapabilityMatrixSkillLike = {
   id: string
   domain?: unknown
 }

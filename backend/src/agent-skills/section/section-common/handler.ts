@@ -298,7 +298,7 @@ function buildCommonNarrative(input: SkillReportNarrativeInput): string {
   ].join('\n');
 }
 
-export class SectionCommonHandler implements SkillHandler {
+class SectionCommonHandler implements SkillHandler {
   detectStructuralType(input: SkillDetectionInput): StructuralTypeMatch | null {
     const { message, locale = 'zh', currentState } = input;
     const text = normalizeSectionText(message);

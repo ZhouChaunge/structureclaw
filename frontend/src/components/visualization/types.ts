@@ -1,5 +1,5 @@
-export type VisualizationBaseViewMode = 'model' | 'deformed' | 'forces' | 'reactions'
-export type VisualizationExtensionViewMode = 'utilization' | 'buckling' | `extension:${string}`
+type VisualizationBaseViewMode = 'model' | 'deformed' | 'forces' | 'reactions'
+type VisualizationExtensionViewMode = 'utilization' | 'buckling' | `extension:${string}`
 export type VisualizationViewMode = VisualizationBaseViewMode | VisualizationExtensionViewMode
 
 export type VisualizationExtensionId = 'builtin.utilization' | 'builtin.buckling' | `builtin.${string}` | `skillhub.${string}`
@@ -22,7 +22,7 @@ export type VisualizationExtensionMap = Partial<Record<VisualizationExtensionId,
 export type VisualizationSource = 'model' | 'result'
 export type VisualizationPlane = 'xy' | 'xz' | 'yz'
 
-export type VisualizationVector3 = {
+type VisualizationVector3 = {
   x: number
   y: number
   z: number

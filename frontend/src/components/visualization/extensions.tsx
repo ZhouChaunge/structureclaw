@@ -9,15 +9,15 @@ import type {
   VisualizationViewMode,
 } from './types'
 
-export type UtilizationExtensionData = {
+type UtilizationExtensionData = {
   memberUtilizationMap: Record<string, number>
 }
 
-export type BucklingExtensionData = {
+type BucklingExtensionData = {
   bucklingModes: BucklingMode[]
 }
 
-export type VisualizationLegendDefinition = {
+type VisualizationLegendDefinition = {
   maxValue: number
   valueScale?: number
   unit?: string
@@ -25,7 +25,7 @@ export type VisualizationLegendDefinition = {
   colorMode?: 'scale' | 'utilization'
 }
 
-export type VisualizationExtensionContext = {
+type VisualizationExtensionContext = {
   snapshot: VisualizationSnapshot
   activeCase: VisualizationCase
   activeView: VisualizationViewMode
@@ -34,7 +34,7 @@ export type VisualizationExtensionContext = {
   t: (key: MessageKey) => string
 }
 
-export type VisualizationExtensionDefinition = {
+type VisualizationExtensionDefinition = {
   id: VisualizationExtensionId
   view: VisualizationViewMode
   viewLabelKey: MessageKey
@@ -62,7 +62,7 @@ export function getBucklingModes(snapshot: VisualizationSnapshot | null): Buckli
   return snapshot?.bucklingModes || []
 }
 
-export function getUtilizationMap(snapshot: VisualizationSnapshot | null): Record<string, number> | null {
+function getUtilizationMap(snapshot: VisualizationSnapshot | null): Record<string, number> | null {
   const entry = getExtensionEntry<UtilizationExtensionData>(snapshot, 'builtin.utilization')
   return entry?.data?.memberUtilizationMap || null
 }
@@ -117,7 +117,7 @@ export function BucklingModePanel({
   )
 }
 
-export const visualizationExtensionRegistry: VisualizationExtensionDefinition[] = [
+const visualizationExtensionRegistry: VisualizationExtensionDefinition[] = [
   {
     id: 'builtin.utilization',
     view: 'utilization',
@@ -177,7 +177,7 @@ export const visualizationExtensionRegistry: VisualizationExtensionDefinition[] 
   },
 ]
 
-export function getAvailableVisualizationExtensions(snapshot: VisualizationSnapshot | null) {
+function getAvailableVisualizationExtensions(snapshot: VisualizationSnapshot | null) {
   return visualizationExtensionRegistry.filter((extension) => extension.isAvailable(snapshot))
 }
 

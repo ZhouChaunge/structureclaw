@@ -86,7 +86,7 @@ export function createColorScale(value: number, maxValue: number) {
   return `#${color.getHexString()}`
 }
 
-export function roundUpNice(value: number) {
+function roundUpNice(value: number) {
   if (!Number.isFinite(value) || value <= 0) {
     return 1
   }

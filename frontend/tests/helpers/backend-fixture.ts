@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const TEST_BACKEND_PORT = 30999
-export const TEST_BACKEND_URL = `http://127.0.0.1:${TEST_BACKEND_PORT}`
+const TEST_BACKEND_URL = `http://127.0.0.1:${TEST_BACKEND_PORT}`
 const HEALTH_URL = `${TEST_BACKEND_URL}/health`
 
 let backendProcess: ReturnType<typeof spawn> | null = null

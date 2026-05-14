@@ -136,7 +136,6 @@ export const BUILTIN_ANALYSIS_ENGINES: AnalysisEngineDefinition[] = [
   }),
 ];
 
-export const BUILTIN_ANALYSIS_ENGINE_IDS = BUILTIN_ANALYSIS_ENGINES.map((engine) => engine.id);
 export const BUILTIN_ANALYSIS_RUNTIME_ADAPTER_KEYS = BUILTIN_ANALYSIS_ENGINES.map((engine) => engine.adapterKey);
 
 export const LOCAL_GET_ACTION_BY_PATH: Record<string, AnalysisExecutionAction> = {
@@ -146,7 +145,3 @@ export const LOCAL_GET_ACTION_BY_PATH: Record<string, AnalysisExecutionAction> =
 export const LOCAL_POST_ACTION_BY_PATH: Record<string, AnalysisExecutionAction> = {
   '/analyze': 'analyze',
 };
-
-export function listBuiltinAnalysisEngines(): AnalysisEngineDefinition[] {
-  return [...BUILTIN_ANALYSIS_ENGINES];
-}

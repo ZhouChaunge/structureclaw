@@ -44,7 +44,7 @@ function pickKeys<T extends string>(
   return next;
 }
 
-export function projectGeometryDomain(
+function projectGeometryDomain(
   patch: DraftExtraction,
   keys: readonly GeometryDomainKey[],
   options?: { spanLengthAliasFromLength?: boolean },
@@ -56,7 +56,7 @@ export function projectGeometryDomain(
   return geometry;
 }
 
-export function projectLoadBoundaryDomain(
+function projectLoadBoundaryDomain(
   patch: DraftExtraction,
   keys: readonly LoadBoundaryDomainKey[],
 ): DraftExtraction {

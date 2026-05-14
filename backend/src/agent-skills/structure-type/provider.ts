@@ -12,43 +12,6 @@ export interface StructureModelingProviderModule {
   handler: SkillHandler;
 }
 
-export function validateStructureModelingProviderModule(module: unknown): string[] {
-  if (!module || typeof module !== 'object') {
-    return ['module must be an object'];
-  }
-
-  const candidate = module as {
-    manifest?: unknown;
-    handler?: unknown;
-  };
-  const errors: string[] = [];
-  if (!candidate.manifest || typeof candidate.manifest !== 'object') {
-    errors.push('manifest export is required');
-  }
-  if (!candidate.handler || typeof candidate.handler !== 'object') {
-    errors.push('handler export is required');
-  }
-
-  const handler = candidate.handler as Partial<SkillHandler> | undefined;
-  const requiredMethods: Array<keyof SkillHandler> = [
-    'detectStructuralType',
-    'parseProvidedValues',
-    'extractDraft',
-    'mergeState',
-    'computeMissing',
-    'mapLabels',
-    'buildQuestions',
-    'buildModel',
-  ];
-  for (const method of requiredMethods) {
-    if (typeof handler?.[method] !== 'function') {
-      errors.push(`handler.${String(method)} must be a function`);
-    }
-  }
-
-  return errors;
-}
-
 export function toStructureModelingProviderFromModule(
   pkg: SkillPackageMetadata,
   module: StructureModelingProviderModule,

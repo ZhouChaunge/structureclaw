@@ -25,7 +25,7 @@ export interface PreferencesState {
   capabilityExplicit: boolean
 }
 
-export interface PreferencesActions {
+interface PreferencesActions {
   setLocale: (locale: AppLocale) => void
   openWorkspaceSettings: (tab?: WorkspaceSettingsTab) => void
   closeWorkspaceSettings: () => void

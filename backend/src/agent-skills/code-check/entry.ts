@@ -1,4 +1,3 @@
-import type { AppLocale } from '../../services/locale.js';
 import {
   resolveCodeCheckRule,
 } from './registry.js';
@@ -10,10 +9,9 @@ export type { CodeCheckDomainInput } from './types.js';
 export {
   listCodeCheckRuleProviders,
   resolveCodeCheckDesignCodeFromSkillIds,
-  resolveCodeCheckSkillIdForDesignCode,
 } from './registry.js';
 
-export function extractElementIds(model: Record<string, unknown> | undefined): string[] {
+function extractElementIds(model: Record<string, unknown> | undefined): string[] {
   if (!model) {
     return [];
   }
@@ -26,7 +24,7 @@ export function extractElementIds(model: Record<string, unknown> | undefined): s
     .filter((id): id is string => typeof id === 'string' && id.length > 0);
 }
 
-export function extractAnalysisSummary(analysis: unknown): Record<string, unknown> {
+function extractAnalysisSummary(analysis: unknown): Record<string, unknown> {
   const data = analysis as Record<string, unknown> | undefined;
   if (!data) {
     return {};
@@ -39,7 +37,7 @@ export function extractAnalysisSummary(analysis: unknown): Record<string, unknow
   };
 }
 
-export function extractUtilizationByElement(parameters: Record<string, unknown>): Record<string, unknown> {
+function extractUtilizationByElement(parameters: Record<string, unknown>): Record<string, unknown> {
   const raw = parameters['utilizationByElement'];
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
     return raw as Record<string, unknown>;
@@ -47,7 +45,7 @@ export function extractUtilizationByElement(parameters: Record<string, unknown>)
   return {};
 }
 
-export function extractElementContextById(model: Record<string, unknown> | undefined): Record<string, unknown> {
+function extractElementContextById(model: Record<string, unknown> | undefined): Record<string, unknown> {
   if (!model) {
     return {};
   }
@@ -80,7 +78,7 @@ export function extractElementContextById(model: Record<string, unknown> | undef
   }, {});
 }
 
-export function extractModelSummary(model: Record<string, unknown> | undefined): Record<string, unknown> {
+function extractModelSummary(model: Record<string, unknown> | undefined): Record<string, unknown> {
   if (!model) {
     return {};
   }
@@ -133,20 +131,4 @@ export async function executeCodeCheckDomain(
 ): Promise<unknown> {
   const rule = resolveCodeCheckRule(input.code);
   return rule.execute(engineClient, input, engineId, requestOptions);
-}
-
-export function buildCodeCheckSummaryText(options: {
-  codeCheck: unknown;
-  locale: AppLocale;
-  localize: (locale: AppLocale, zh: string, en: string) => string;
-}): string {
-  const codeCheckSummary = (options.codeCheck as { summary?: Record<string, unknown> } | undefined)?.summary;
-  if (codeCheckSummary) {
-    return options.localize(
-      options.locale,
-      `校核通过 ${String(codeCheckSummary.passed ?? 0)} / ${String(codeCheckSummary.total ?? 0)}`,
-      `Code checks passed ${String(codeCheckSummary.passed ?? 0)} / ${String(codeCheckSummary.total ?? 0)}`,
-    );
-  }
-  return options.localize(options.locale, '未执行规范校核', 'No code checks were executed');
 }

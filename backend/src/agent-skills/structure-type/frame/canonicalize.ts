@@ -2,7 +2,7 @@ import { mergeLegacyDraftPatchLlmFirst } from '../../../agent-runtime/legacy.js'
 import type { DraftExtraction, DraftFloorLoad } from '../../../agent-runtime/types.js';
 import type { FramePatchSources } from './types.js';
 
-export function mergeFloorLoadsByStory(
+function mergeFloorLoadsByStory(
   existing: DraftFloorLoad[] | undefined,
   incoming: DraftFloorLoad[] | undefined,
 ): DraftFloorLoad[] | undefined {
